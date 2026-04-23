@@ -939,9 +939,9 @@ make doctor   # 아래 전부 수행
 - [x] **상품 이미지 CRUD API**: `POST /products/{id}/images` (URL 추가) + `DELETE /products/{id}/images/{imageId}` (삭제) 백엔드 엔드포인트
 - [x] **상품 이미지 관리 UI**: ProductDetail 이미지 탭에 URL 입력으로 이미지 추가 + 호버 시 삭제 버튼, useAddProductImage/useDeleteProductImage 훅
 - [x] **주문 목록 날짜 컬럼**: OrdersTable에 주문일시(orderedAt) 컬럼 추가, 백엔드 OrderResponse에 ordered_at 필드 추가
+- [x] **관리자 설정 UI (`/admin/settings`)** (§9.10): `GET/PATCH/history/rollback` 엔드포인트 5개, AdminSettingsContent(검색/스코프 필터, 커서 페이지네이션, 타입별 컬러), SettingEditDialog(JSON 검증), SettingHistoryDrawer(타임라인+롤백), 시크릿 마스킹, i18n 37키
 
 ### 16.2 미구현 (TODO)
-- [ ] **관리 UI (`/admin/settings`)**: 설정 관리 웹 UI (§9.10)
 - [ ] 다중 창고(WMS) 연동은 v2 범위
 - [ ] B2B(세금계산서) 발행은 별도 모듈로 분리 예정
 - [ ] `packages/shared-types/` — OpenAPI → TS 타입 자동 생성
