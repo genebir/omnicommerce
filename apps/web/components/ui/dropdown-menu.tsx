@@ -41,7 +41,7 @@ export function DropdownMenu({
 
   return (
     <div ref={ref} className="relative">
-      <div onClick={() => setOpen((v) => !v)}>{trigger}</div>
+      <div role="button" tabIndex={0} onClick={() => setOpen((v) => !v)} onKeyDown={(e) => e.key === "Enter" && setOpen((v) => !v)}>{trigger}</div>
       {open && (
         <div
           className={cn(

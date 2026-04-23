@@ -233,12 +233,24 @@ body {
   outline-offset: 2px;
 }
 
-/* ── 버튼 기본 커서 ── */
+/* ── 클릭 가능한 요소 커서 ── */
 button:not(:disabled),
-[role="button"]:not(:disabled) {
+[role="button"]:not(:disabled),
+[role="tab"]:not([aria-disabled="true"]),
+[role="menuitem"]:not([aria-disabled="true"]),
+[role="option"]:not([aria-disabled="true"]),
+[role="switch"]:not([aria-disabled="true"]),
+[role="link"],
+a[href],
+select:not(:disabled),
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+input[type="button"]:not(:disabled),
+summary {
   cursor: pointer;
 }
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
