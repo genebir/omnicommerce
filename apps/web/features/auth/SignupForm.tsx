@@ -112,7 +112,7 @@ export function SignupForm() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-xl bg-accent-iris py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80 disabled:opacity-50"
+          className="w-full cursor-pointer rounded-xl bg-accent-iris py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? t("submitting") : t("submit")}
         </button>

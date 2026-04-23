@@ -40,7 +40,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
+            className="cursor-pointer rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
           >
             {cancelLabel}
           </button>
@@ -48,7 +48,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className={`rounded-xl px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50 ${
+            className={`cursor-pointer rounded-xl px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               destructive
                 ? "bg-state-error hover:bg-state-error/80"
                 : "bg-accent-iris hover:bg-accent-iris/80"

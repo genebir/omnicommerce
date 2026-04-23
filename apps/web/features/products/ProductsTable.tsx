@@ -156,7 +156,7 @@ export function ProductsTable() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value || null)}
-          className="rounded-lg border border-border-subtle bg-bg-surface px-3 py-2 text-sm text-text-secondary focus:border-accent-iris focus:outline-none"
+          className="cursor-pointer rounded-lg border border-border-subtle bg-bg-surface px-3 py-2 text-sm text-text-secondary focus:border-accent-iris focus:outline-none"
         >
           <option value="">{t("allStatuses")}</option>
           <option value="ACTIVE">{t("statusActive")}</option>
@@ -172,7 +172,7 @@ export function ProductsTable() {
           <button
             type="button"
             onClick={() => setShowDeleteConfirm(true)}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-state-error transition-colors hover:bg-state-error/10"
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-state-error transition-colors hover:bg-state-error/10"
           >
             <Trash2 className="size-3.5" />
             {tc("delete")}
@@ -208,7 +208,7 @@ export function ProductsTable() {
             type="button"
             onClick={() => fetchNextPage()}
             disabled={isFetchingNextPage}
-            className="rounded-xl border border-border-subtle px-6 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2 disabled:opacity-50"
+            className="cursor-pointer rounded-xl border border-border-subtle px-6 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isFetchingNextPage ? (
               <Loader2 className="mx-auto size-4 animate-spin" />

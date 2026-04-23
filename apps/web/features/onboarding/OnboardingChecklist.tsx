@@ -37,7 +37,7 @@ export function OnboardingChecklist() {
       <button
         type="button"
         onClick={() => setCollapsed((v) => !v)}
-        className="flex w-full items-center justify-between px-6 py-4"
+        className="flex w-full cursor-pointer items-center justify-between px-6 py-4"
       >
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-semibold text-text-primary">

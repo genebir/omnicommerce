@@ -60,7 +60,7 @@ export function SettingsContent() {
               type="button"
               onClick={() => setActiveSection(section.key)}
               className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
+                "flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
                 activeSection === section.key
                   ? "bg-bg-surface-2 font-medium text-text-primary"
                   : "text-text-secondary hover:bg-bg-surface-2 hover:text-text-primary",
@@ -199,7 +199,7 @@ export function SettingsContent() {
               <button
                 type="submit"
                 disabled={changePassword.isPending}
-                className="rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80 disabled:opacity-50"
+                className="cursor-pointer rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {changePassword.isPending ? "..." : t("changePassword")}
               </button>
@@ -222,7 +222,7 @@ export function SettingsContent() {
                   type="button"
                   onClick={() => handleLocaleChange(lang.code)}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors",
+                    "flex w-full cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors",
                     currentLocale === lang.code
                       ? "bg-accent-iris/10 text-accent-iris"
                       : "text-text-secondary hover:bg-bg-surface-2",
@@ -251,7 +251,7 @@ export function SettingsContent() {
                   type="button"
                   onClick={() => setTheme(opt.value)}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors",
+                    "flex w-full cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-sm transition-colors",
                     theme === opt.value
                       ? "bg-accent-iris/10 text-accent-iris"
                       : "text-text-secondary hover:bg-bg-surface-2",

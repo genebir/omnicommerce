@@ -105,7 +105,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
           trigger={
             <button
               type="button"
-              className="rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
+              className="cursor-pointer rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
             >
               ···
             </button>
@@ -213,7 +213,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                     <button
                       type="submit"
                       disabled={addImage.isPending || !imageUrl.trim()}
-                      className="flex items-center gap-1.5 rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80 disabled:opacity-50"
+                      className="flex cursor-pointer items-center gap-1.5 rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Plus className="size-4" />
                       {t("addImage")}
@@ -243,7 +243,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                               await deleteImage.mutateAsync(img.id);
                               toast.success(t("imageDeleted"));
                             }}
-                            className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-bg-elevated/80 text-text-primary opacity-0 transition-opacity hover:bg-state-error hover:text-white group-hover:opacity-100"
+                            className="absolute right-2 top-2 flex size-7 cursor-pointer items-center justify-center rounded-full bg-bg-elevated/80 text-text-primary opacity-0 transition-opacity hover:bg-state-error hover:text-white group-hover:opacity-100"
                             aria-label={tc("delete")}
                           >
                             <X className="size-4" />

@@ -137,14 +137,14 @@ export function ProductForm({ defaultValues, productId }: ProductFormProps) {
         <button
           type="button"
           onClick={() => router.back()}
-          className="rounded-xl border border-border-subtle px-4 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
+          className="cursor-pointer rounded-xl border border-border-subtle px-4 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
         >
           {tc("cancel")}
         </button>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-xl bg-accent-iris px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80 disabled:opacity-50"
+          className="cursor-pointer rounded-xl bg-accent-iris px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? tc("loading") : tc("save")}
         </button>

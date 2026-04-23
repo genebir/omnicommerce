@@ -45,7 +45,7 @@ export function Tabs({
             aria-selected={activeTab === tab.id}
             onClick={() => handleTabChange(tab.id)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors",
+              "flex cursor-pointer items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors",
               "border-b-2 -mb-px",
               activeTab === tab.id
                 ? "border-accent-iris text-text-primary"

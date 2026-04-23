@@ -89,7 +89,7 @@ export function DataTable<TData>({
           <button
             type="button"
             onClick={() => onRowSelectionChange?.({})}
-            className="text-xs text-text-tertiary hover:text-text-primary"
+            className="cursor-pointer text-xs text-text-tertiary hover:text-text-primary"
           >
             {t("cancel")}
           </button>

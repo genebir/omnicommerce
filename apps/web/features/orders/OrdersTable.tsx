@@ -140,7 +140,7 @@ export function OrdersTable() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value || null)}
-          className="rounded-lg border border-border-subtle bg-bg-surface px-3 py-2 text-sm text-text-secondary focus:border-accent-iris focus:outline-none"
+          className="cursor-pointer rounded-lg border border-border-subtle bg-bg-surface px-3 py-2 text-sm text-text-secondary focus:border-accent-iris focus:outline-none"
         >
           <option value="">{t("allStatuses")}</option>
           <option value="PAID">{t("statusPaid")}</option>
@@ -164,7 +164,7 @@ export function OrdersTable() {
             type="button"
             onClick={() => fetchNextPage()}
             disabled={isFetchingNextPage}
-            className="rounded-xl border border-border-subtle px-6 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2 disabled:opacity-50"
+            className="cursor-pointer rounded-xl border border-border-subtle px-6 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isFetchingNextPage ? (
               <Loader2 className="mx-auto size-4 animate-spin" />
