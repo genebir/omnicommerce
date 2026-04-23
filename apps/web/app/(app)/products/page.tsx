@@ -1,10 +1,16 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { Package, Plus } from "lucide-react";
+import { Package, Plus, Download } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ProductsTable } from "@/features/products/ProductsTable";
+import { ImportProductsModal } from "@/features/channels/ImportProductsModal";
 
 export default function ProductsPage() {
   const t = useTranslations("products");
+  const tc = useTranslations("channels");
+  const [importOpen, setImportOpen] = useState(false);
 
   return (
     <div>
@@ -15,15 +21,26 @@ export default function ProductsPage() {
             {t("title")}
           </h1>
         </div>
-        <Link
-          href="/products/new"
-          className="flex items-center gap-2 rounded-xl bg-accent-iris px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80"
-        >
-          <Plus className="size-4" />
-          {t("newProduct")}
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="flex cursor-pointer items-center gap-2 rounded-xl border border-border-subtle px-4 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
+          >
+            <Download className="size-4" />
+            {tc("importFromChannel")}
+          </button>
+          <Link
+            href="/products/new"
+            className="flex items-center gap-2 rounded-xl bg-accent-iris px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80"
+          >
+            <Plus className="size-4" />
+            {t("newProduct")}
+          </Link>
+        </div>
       </div>
       <ProductsTable />
+      <ImportProductsModal open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }

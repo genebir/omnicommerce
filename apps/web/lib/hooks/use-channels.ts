@@ -64,4 +64,22 @@ export function useDisconnectChannel() {
   });
 }
 
-export type { ChannelType, ConnectedChannel };
+interface ImportResult {
+  imported: number;
+  skipped: number;
+  errors: number;
+}
+
+export function useImportProducts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (channelId: string) =>
+      api.post<ImportResult>(`/channels/${channelId}/import-products`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["channels"] });
+    },
+  });
+}
+
+export type { ChannelType, ConnectedChannel, ImportResult };

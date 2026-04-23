@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime
 
+import structlog
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
@@ -10,8 +11,13 @@ from sqlalchemy.orm import selectinload
 
 from src.api.v1.schemas import ApiResponse, PaginatedResponse, PaginationMeta
 from src.core.deps import CurrentUserDep, SessionDep
+from src.infra.db.models.channel import Channel
+from src.infra.db.models.channel_listing import ChannelListing
 from src.infra.db.models.product import Product
 from src.services.product_service import ProductService
+from src.utils.clock import now
+
+logger = structlog.stdlib.get_logger()
 
 router = APIRouter(prefix="/products")
 
@@ -23,6 +29,7 @@ class ProductCreate(BaseModel):
     price: float = Field(ge=0)
     cost_price: float | None = None
     category_path: str | None = None
+    publish_to: list[str] = Field(default_factory=list, description="등록할 채널 타입 목록")
 
 
 class ProductUpdate(BaseModel):
@@ -107,7 +114,60 @@ async def create_product(body: ProductCreate, session: SessionDep, current_user:
         cost_price=body.cost_price,
         category_path=body.category_path,
     )
+
+    if body.publish_to:
+        await _publish_to_channels(session, product, current_user.id, body.publish_to)
+
     return ApiResponse(data=product)
+
+
+async def _publish_to_channels(session, product: Product, user_id: uuid.UUID, channel_types: list[str]) -> None:
+    """상품을 지정한 채널들에 등록하고 ChannelListing 레코드를 생성한다."""
+    from src.infra.channels.factory import create_gateway
+
+    for channel_type in channel_types:
+        ch_result = await session.execute(
+            select(Channel).where(
+                Channel.user_id == user_id,
+                Channel.channel_type == channel_type,
+                Channel.deleted_at.is_(None),
+                Channel.is_active.is_(True),
+            )
+        )
+        channel = ch_result.scalar_one_or_none()
+        if not channel:
+            await logger.awarning("채널 연결 없음 — 스킵", channel_type=channel_type)
+            continue
+
+        sync_status = "FAILED"
+        external_id = "PENDING"
+        external_url = None
+        last_error = None
+
+        try:
+            gateway = create_gateway(channel)
+            ext = await gateway.upsert_product(product)
+            await gateway.close()
+            external_id = ext.id
+            external_url = ext.url
+            sync_status = "SYNCED"
+            await logger.ainfo("채널 등록 성공", channel_type=channel_type, external_id=external_id)
+        except Exception as exc:
+            last_error = str(exc)
+            await logger.awarning("채널 등록 실패", channel_type=channel_type, error=last_error)
+
+        listing = ChannelListing(
+            product_id=product.id,
+            channel_type=channel_type,
+            external_id=external_id,
+            external_url=external_url,
+            sync_status=sync_status,
+            last_synced_at=now() if sync_status == "SYNCED" else None,
+            last_error=last_error,
+        )
+        session.add(listing)
+
+    await session.commit()
 
 
 @router.get("/{product_id}", response_model=ApiResponse[ProductDetailResponse])

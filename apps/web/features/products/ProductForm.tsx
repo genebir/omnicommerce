@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { productSchema, type ProductFormValues } from "@/lib/validations/product";
 import { useCreateProduct, useUpdateProduct } from "@/lib/hooks/use-products";
+import { useConnectedChannels } from "@/lib/hooks/use-channels";
 
 interface ProductFormProps {
   defaultValues?: ProductFormValues;
@@ -22,6 +24,8 @@ export function ProductForm({ defaultValues, productId }: ProductFormProps) {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct(productId ?? "");
   const isEdit = !!productId;
+  const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
+  const { data: connectedChannels } = useConnectedChannels();
 
   const {
     register,
@@ -48,6 +52,7 @@ export function ProductForm({ defaultValues, productId }: ProductFormProps) {
           sku: data.sku,
           price: data.price,
           description: data.description,
+          publish_to: selectedChannels,
         });
         toast.success(t("createSuccess"));
       }
@@ -132,6 +137,42 @@ export function ProductForm({ defaultValues, productId }: ProductFormProps) {
           {...register("description")}
         />
       </div>
+
+      {!isEdit && connectedChannels && connectedChannels.length > 0 && (
+        <div className="rounded-2xl border border-border-subtle bg-bg-surface p-6">
+          <h2 className="mb-1 text-lg font-semibold text-text-primary">
+            {t("publishTo")}
+          </h2>
+          <p className="mb-4 text-sm text-text-tertiary">{t("publishToDesc")}</p>
+          <div className="space-y-2">
+            {connectedChannels.map((ch) => (
+              <label
+                key={ch.id}
+                className="flex cursor-pointer items-center gap-3 rounded-xl border border-border-subtle p-3 transition-colors hover:bg-bg-surface-2"
+              >
+                <input
+                  type="checkbox"
+                  className="size-4 cursor-pointer accent-accent-iris"
+                  checked={selectedChannels.includes(ch.channel_type)}
+                  onChange={(e) => {
+                    setSelectedChannels((prev) =>
+                      e.target.checked
+                        ? [...prev, ch.channel_type]
+                        : prev.filter((c) => c !== ch.channel_type)
+                    );
+                  }}
+                />
+                <span className="text-sm font-medium text-text-primary">
+                  {ch.shop_name}
+                </span>
+                <span className="ml-auto text-xs text-text-tertiary">
+                  {ch.channel_type}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-end gap-3">
         <button

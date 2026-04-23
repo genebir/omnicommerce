@@ -77,6 +77,7 @@ export function useCreateProduct() {
       sku: string;
       price: number;
       description?: string;
+      publish_to?: string[];
     }) => api.post<Product>("/products", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });

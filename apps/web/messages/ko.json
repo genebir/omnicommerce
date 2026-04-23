@@ -140,7 +140,9 @@
     "addImage": "��가",
     "imageUrlPlaceholder": "이미지 URL을 입력하세요",
     "imageAdded": "이미지가 추가되었습니다",
-    "imageDeleted": "이미지가 삭제되었습니다"
+    "imageDeleted": "이미지가 삭제되었습니다",
+    "publishTo": "채널 등록",
+    "publishToDesc": "상품 등록 시 선택한 채널에 함께 게시됩니다."
   },
   "orders": {
     "title": "주문",
@@ -217,6 +219,11 @@
     "mallIdPlaceholder": "your-mall-id",
     "clientIdLabel": "클라이언트 ID",
     "clientSecretLabel": "클라이언트 시크릿",
+    "accessTokenLabel": "액세스 토큰",
+    "refreshTokenLabel": "리프레시 토큰",
+    "accessKeyLabel": "액세스 키",
+    "secretKeyLabel": "시크릿 키",
+    "vendorIdLabel": "벤더 ID",
     "verifying": "확인 중...",
     "verify": "연결 확인",
     "complete": "완료",
@@ -228,7 +235,15 @@
     "stepOf": "{current}/{total} 단계",
     "cafe24": "카페24 쇼핑몰과 상품/주문을 동기화합니다",
     "naver": "네이버 커머스 API로 상품/주문을 관리합니다",
-    "coupang": "쿠팡 Wing API로 상품/주문을 관리합니다"
+    "coupang": "쿠팡 Wing API로 상품/주문을 관리합니다",
+    "importFromChannel": "채널에서 가져오기",
+    "importTitle": "채널 상품 가져오기",
+    "importDesc": "연결된 채널을 선택하면 해당 채널의 상품을 불러옵니다.",
+    "import": "가져오기",
+    "importing": "상품을 가져오는 중입니다...",
+    "importSuccess": "{imported}개 가져옴, {skipped}개 건너뜀",
+    "importError": "상품 가져오기에 실패했습니다",
+    "noConnectedChannels": "연결된 채널이 없습니다. 먼저 채널을 연결해주세요."
   },
   "settings": {
     "title": "설정",

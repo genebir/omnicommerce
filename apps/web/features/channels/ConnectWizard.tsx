@@ -25,9 +25,9 @@ interface ConnectWizardProps {
 type Step = "credentials" | "verify" | "done";
 
 const channelFields: Record<string, string[]> = {
-  cafe24: ["mallId", "clientId", "clientSecret"],
+  cafe24: ["mallId", "accessToken", "refreshToken"],
   naver: ["clientId", "clientSecret"],
-  coupang: ["apiKeyLabel"],
+  coupang: ["accessKey", "secretKey", "vendorId"],
 };
 
 export function ConnectWizard({
@@ -140,16 +140,66 @@ export function ConnectWizard({
                 />
               </div>
             )}
-            {fields.includes("apiKeyLabel") && !fields.includes("clientId") && (
+            {fields.includes("accessToken") && (
               <div>
-                <Label htmlFor="api-key">{t("apiKeyLabel")}</Label>
+                <Label htmlFor="access-token">{t("accessTokenLabel")}</Label>
                 <Input
-                  id="api-key"
-                  name="api_key"
-                  placeholder={t("apiKeyPlaceholder")}
+                  id="access-token"
+                  name="access_token"
+                  type="password"
                   className="font-mono"
-                  value={credentials["api_key"] ?? ""}
-                  onChange={(e) => handleFieldChange("api_key", e.target.value)}
+                  value={credentials["access_token"] ?? ""}
+                  onChange={(e) => handleFieldChange("access_token", e.target.value)}
+                />
+              </div>
+            )}
+            {fields.includes("refreshToken") && (
+              <div>
+                <Label htmlFor="refresh-token">{t("refreshTokenLabel")}</Label>
+                <Input
+                  id="refresh-token"
+                  name="refresh_token"
+                  type="password"
+                  className="font-mono"
+                  value={credentials["refresh_token"] ?? ""}
+                  onChange={(e) => handleFieldChange("refresh_token", e.target.value)}
+                />
+              </div>
+            )}
+            {fields.includes("accessKey") && (
+              <div>
+                <Label htmlFor="access-key">{t("accessKeyLabel")}</Label>
+                <Input
+                  id="access-key"
+                  name="access_key"
+                  className="font-mono"
+                  value={credentials["access_key"] ?? ""}
+                  onChange={(e) => handleFieldChange("access_key", e.target.value)}
+                />
+              </div>
+            )}
+            {fields.includes("secretKey") && (
+              <div>
+                <Label htmlFor="secret-key">{t("secretKeyLabel")}</Label>
+                <Input
+                  id="secret-key"
+                  name="secret_key"
+                  type="password"
+                  className="font-mono"
+                  value={credentials["secret_key"] ?? ""}
+                  onChange={(e) => handleFieldChange("secret_key", e.target.value)}
+                />
+              </div>
+            )}
+            {fields.includes("vendorId") && (
+              <div>
+                <Label htmlFor="vendor-id">{t("vendorIdLabel")}</Label>
+                <Input
+                  id="vendor-id"
+                  name="vendor_id"
+                  className="font-mono"
+                  value={credentials["vendor_id"] ?? ""}
+                  onChange={(e) => handleFieldChange("vendor_id", e.target.value)}
                 />
               </div>
             )}

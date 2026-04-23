@@ -140,7 +140,9 @@
     "addImage": "Add",
     "imageUrlPlaceholder": "Enter image URL",
     "imageAdded": "Image added",
-    "imageDeleted": "Image deleted"
+    "imageDeleted": "Image deleted",
+    "publishTo": "Publish to Channels",
+    "publishToDesc": "The product will be published to selected channels upon creation."
   },
   "orders": {
     "title": "Orders",
@@ -217,6 +219,11 @@
     "mallIdPlaceholder": "your-mall-id",
     "clientIdLabel": "Client ID",
     "clientSecretLabel": "Client Secret",
+    "accessTokenLabel": "Access Token",
+    "refreshTokenLabel": "Refresh Token",
+    "accessKeyLabel": "Access Key",
+    "secretKeyLabel": "Secret Key",
+    "vendorIdLabel": "Vendor ID",
     "verifying": "Verifying...",
     "verify": "Verify Connection",
     "complete": "Complete",
@@ -228,7 +235,15 @@
     "stepOf": "Step {current}/{total}",
     "cafe24": "Sync products and orders with Cafe24",
     "naver": "Manage products and orders via Naver Commerce API",
-    "coupang": "Manage products and orders via Coupang Wing API"
+    "coupang": "Manage products and orders via Coupang Wing API",
+    "importFromChannel": "Import from Channel",
+    "importTitle": "Import Channel Products",
+    "importDesc": "Select a connected channel to import its products.",
+    "import": "Import",
+    "importing": "Importing products...",
+    "importSuccess": "{imported} imported, {skipped} skipped",
+    "importError": "Failed to import products",
+    "noConnectedChannels": "No channels connected. Please connect a channel first."
   },
   "settings": {
     "title": "Settings",
