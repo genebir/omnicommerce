@@ -22,9 +22,9 @@ export const Default: Story = {
       status: "ACTIVE",
       createdAt: "2026-01-10T09:00:00+09:00",
       updatedAt: "2026-01-20T14:30:00+09:00",
-      channelListings: [
-        { channelCode: "cafe24", externalId: "P00012345", syncStatus: "synced", lastSyncedAt: "2026-01-20T14:30:00+09:00" },
-        { channelCode: "naver", externalId: "NV-98765", syncStatus: "pending", lastSyncedAt: "2026-01-19T10:00:00+09:00" },
+      channel_listings: [
+        { channel_type: "cafe24", external_id: "P00012345", sync_status: "SYNCED", external_url: null },
+        { channel_type: "naver", external_id: "NV-98765", sync_status: "PENDING", external_url: null },
       ],
       images: [],
     },
@@ -43,7 +43,7 @@ export const NoListings: Story = {
       status: "DRAFT",
       createdAt: "2026-01-20T09:00:00+09:00",
       updatedAt: "2026-01-20T09:00:00+09:00",
-      channelListings: [],
+      channel_listings: [],
       images: [],
     },
   },

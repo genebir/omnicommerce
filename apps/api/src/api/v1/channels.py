@@ -78,6 +78,71 @@ class ChannelDisconnectRequest(BaseModel):
     pass
 
 
+@router.get("/cafe24/redirect-uri", response_model=ApiResponse[dict])
+async def get_cafe24_redirect_uri():
+    """Cafe24 OAuth에 등록할 Redirect URI를 반환한다."""
+    uri = settings.CAFE24_REDIRECT_URI or None
+    configured = bool(uri and not uri.startswith("http://localhost"))
+    return ApiResponse(data={"redirect_uri": uri, "configured": configured})
+
+
+class Cafe24ManualConnectRequest(BaseModel):
+    mall_id: str = Field(min_length=1, max_length=100)
+    access_token: str = Field(min_length=1)
+    refresh_token: str = ""
+
+
+@router.post("/cafe24/connect-manual", response_model=ApiResponse[ChannelResponse], status_code=201)
+async def cafe24_connect_manual(
+    body: Cafe24ManualConnectRequest,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+):
+    """수동으로 Cafe24 액세스 토큰을 입력해 채널을 연결한다."""
+    credentials = {
+        "mall_id": body.mall_id,
+        "access_token": body.access_token,
+        "refresh_token": body.refresh_token,
+        "client_id": settings.CAFE24_CLIENT_ID,
+        "client_secret": settings.CAFE24_CLIENT_SECRET,
+    }
+
+    existing = await session.execute(
+        select(Channel).where(
+            Channel.user_id == current_user.id,
+            Channel.channel_type == "cafe24",
+            Channel.shop_name == body.mall_id,
+        )
+    )
+    channel = existing.scalar_one_or_none()
+    if channel:
+        channel.credentials_encrypted = encrypt(json.dumps(credentials))
+        channel.is_active = True
+        channel.deleted_at = None
+    else:
+        channel = Channel(
+            user_id=current_user.id,
+            channel_type="cafe24",
+            shop_name=body.mall_id,
+            credentials_encrypted=encrypt(json.dumps(credentials)),
+            is_active=True,
+        )
+        session.add(channel)
+
+    await session.commit()
+    await session.refresh(channel)
+    await logger.ainfo("cafe24 수동 연결 완료", mall_id=body.mall_id, user_id=str(current_user.id))
+
+    return ApiResponse(
+        data=ChannelResponse(
+            id=channel.id,
+            channel_type=channel.channel_type,
+            shop_name=channel.shop_name,
+            is_active=channel.is_active,
+        )
+    )
+
+
 @router.get("/cafe24/oauth/url", response_model=ApiResponse[dict])
 async def cafe24_oauth_url(
     mall_id: str = Query(..., min_length=1, max_length=100),
@@ -142,18 +207,19 @@ async def cafe24_oauth_callback(
         "client_secret": settings.CAFE24_CLIENT_SECRET,
     }
 
+    # deleted_at 무관하게 조회 — soft-delete된 레코드도 재활성화
     existing = await session.execute(
         select(Channel).where(
             Channel.user_id == user_id,
             Channel.channel_type == "cafe24",
             Channel.shop_name == mall_id,
-            Channel.deleted_at.is_(None),
         )
     )
     channel = existing.scalar_one_or_none()
     if channel:
         channel.credentials_encrypted = encrypt(json.dumps(credentials))
         channel.is_active = True
+        channel.deleted_at = None
     else:
         channel = Channel(
             user_id=user_id,
@@ -272,7 +338,12 @@ async def import_products(
     session: SessionDep,
     current_user: CurrentUserDep,
 ):
-    """채널에서 상품 목록을 가져와 내부 Product + ChannelListing으로 저장한다."""
+    """채널에서 상품 목록을 가져와 내부 Product + ChannelListing으로 저장한다.
+
+    - 이미 external_id가 등록된 상품 → 스킵
+    - 동일 SKU가 있으면 새 Product 생성 없이 ChannelListing만 연결
+    - savepoint를 사용해 개별 오류가 전체 커밋을 막지 않도록 처리
+    """
     channel = await session.get(Channel, channel_id)
     if not channel or channel.user_id != current_user.id or channel.deleted_at is not None:
         raise HTTPException(status_code=404, detail="채널을 찾을 수 없습니다")
@@ -280,7 +351,7 @@ async def import_products(
     from src.infra.channels.factory import create_gateway
     from src.infra.db.models.product import Product
 
-    gateway = create_gateway(channel)
+    gateway = create_gateway(channel, session)  # 세션 전달 → 토큰 갱신 시 DB 자동 저장
     imported = skipped = errors = 0
 
     try:
@@ -289,40 +360,81 @@ async def import_products(
             page = await gateway.list_products(cursor=cursor)
 
             for item in page.items:
-                existing = await session.execute(
-                    select(ChannelListing).where(
-                        ChannelListing.channel_type == channel.channel_type,
-                        ChannelListing.external_id == item.external_id,
-                    )
-                )
-                if existing.scalar_one_or_none():
-                    skipped += 1
-                    continue
-
                 try:
-                    product = Product(
-                        user_id=current_user.id,
-                        sku=item.sku,
-                        name=item.name,
-                        price=float(item.price),
-                        cost_price=float(item.cost_price) if getattr(item, "cost_price", None) else None,
-                        description=item.description,
-                        status=item.status,
-                    )
-                    session.add(product)
-                    await session.flush()
+                    # savepoint: 이 상품 처리가 실패해도 세션 전체는 유효하게 유지
+                    async with session.begin_nested():
+                        # 이미 이 channel_type + external_id로 등록된 listing이 있으면 스킵
+                        existing_listing = (
+                            await session.execute(
+                                select(ChannelListing).where(
+                                    ChannelListing.channel_type == channel.channel_type,
+                                    ChannelListing.external_id == item.external_id,
+                                    ChannelListing.deleted_at.is_(None),
+                                )
+                            )
+                        ).scalar_one_or_none()
 
-                    listing = ChannelListing(
-                        product_id=product.id,
-                        channel_type=channel.channel_type,
-                        external_id=item.external_id,
-                        sync_status="SYNCED",
-                        last_synced_at=now(),
-                    )
-                    session.add(listing)
+                        if existing_listing:
+                            # 이미 등록된 채널 listing — listing 정보만 최신화하고 스킵
+                            existing_listing.external_url = (
+                                getattr(item, "external_url", None) or existing_listing.external_url
+                            )
+                            existing_listing.last_synced_at = now()
+                            skipped += 1
+                            continue
+
+                        # 동일 SKU의 상품이 있으면 새로 만들지 않고 채널 listing만 연결
+                        existing_product = (
+                            await session.execute(
+                                select(Product).where(
+                                    Product.user_id == current_user.id,
+                                    Product.sku == item.sku,
+                                    Product.deleted_at.is_(None),
+                                )
+                            )
+                        ).scalar_one_or_none()
+
+                        if existing_product:
+                            product_id = existing_product.id
+                            # 상품 정보 최신화 (이름·가격이 채널에서 다를 수 있음)
+                            existing_product.name = item.name[:500]
+                            existing_product.price = float(item.price)
+                            if item.description:
+                                existing_product.description = item.description
+                            existing_product.status = item.status
+                        else:
+                            new_product = Product(
+                                user_id=current_user.id,
+                                sku=item.sku[:100],  # DB 컬럼 길이 보호
+                                name=item.name[:500],
+                                price=float(item.price),
+                                cost_price=float(item.cost_price) if getattr(item, "cost_price", None) else None,
+                                description=item.description,
+                                status=item.status,
+                            )
+                            session.add(new_product)
+                            await session.flush()
+                            product_id = new_product.id
+
+                        listing = ChannelListing(
+                            product_id=product_id,
+                            channel_type=channel.channel_type,
+                            external_id=item.external_id,
+                            external_url=getattr(item, "external_url", None),
+                            sync_status="SYNCED",
+                            last_synced_at=now(),
+                        )
+                        session.add(listing)
+
                     imported += 1
                 except Exception as exc:
-                    await logger.awarning("상품 가져오기 실패", external_id=item.external_id, error=str(exc))
+                    await logger.awarning(
+                        "상품 가져오기 실패",
+                        channel_type=channel.channel_type,
+                        external_id=item.external_id,
+                        sku=item.sku,
+                        error=str(exc),
+                    )
                     errors += 1
 
             await session.commit()

@@ -89,3 +89,6 @@ class CoupangClient:
 
     async def put(self, path: str, **kwargs) -> dict:
         return await self._request("PUT", path, **kwargs)
+
+    async def delete(self, path: str, **kwargs) -> dict:
+        return await self._request("DELETE", path, **kwargs)

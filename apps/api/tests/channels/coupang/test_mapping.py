@@ -37,7 +37,7 @@ def test_normalize_product():
     assert norm.sku == "CP-300"
     assert norm.price == Decimal("33000")
     assert norm.cost_price == Decimal("20000")
-    assert norm.status == "active"
+    assert norm.status == "ACTIVE"
 
 
 def test_normalize_draft_product():
@@ -49,7 +49,7 @@ def test_normalize_draft_product():
     }
     dto = parse_product(raw)
     norm = normalize_product(dto)
-    assert norm.status == "draft"
+    assert norm.status == "INACTIVE"
 
 
 def test_map_order_status():

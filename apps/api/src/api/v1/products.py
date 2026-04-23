@@ -1,7 +1,9 @@
 """상품 API 엔드포인트."""
 
+import contextlib
 import uuid
 from datetime import datetime
+from typing import Annotated
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query
@@ -50,6 +52,15 @@ class ProductImageResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ChannelListingInfo(BaseModel):
+    channel_type: str
+    external_id: str
+    sync_status: str
+    external_url: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class ProductResponse(BaseModel):
     id: uuid.UUID
     sku: str
@@ -61,12 +72,24 @@ class ProductResponse(BaseModel):
     status: str
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    channel_listings: list[ChannelListingInfo] = []
 
     model_config = {"from_attributes": True}
 
 
 class ProductDetailResponse(ProductResponse):
     images: list[ProductImageResponse] = []
+
+
+class ChannelDeleteResult(BaseModel):
+    channel_type: str
+    success: bool
+    error: str | None = None
+    requires_reconnect: bool = False  # True면 채널 재연결 필요
+
+
+class DeleteProductResult(BaseModel):
+    channel_results: list[ChannelDeleteResult] = []
 
 
 @router.get("", response_model=PaginatedResponse[ProductResponse])
@@ -83,7 +106,7 @@ async def list_products(
         base = base.where(Product.name.ilike(f"%{q}%") | Product.sku.ilike(f"%{q}%"))
     if status:
         base = base.where(Product.status == status)
-    query = base.order_by(Product.created_at.desc()).limit(limit + 1)
+    query = base.options(selectinload(Product.channel_listings)).order_by(Product.created_at.desc()).limit(limit + 1)
     if cursor:
         query = query.where(Product.id < uuid.UUID(cursor))
     result = await session.execute(query)
@@ -119,6 +142,161 @@ async def create_product(body: ProductCreate, session: SessionDep, current_user:
         await _publish_to_channels(session, product, current_user.id, body.publish_to)
 
     return ApiResponse(data=product)
+
+
+async def _sync_update_to_channels(session, product: Product, user_id: uuid.UUID) -> None:
+    """수정된 상품을 연결된 모든 채널에 동기화한다."""
+    from src.core.exceptions import AuthenticationError, ChannelResourceNotFoundError
+    from src.infra.channels.factory import create_gateway
+
+    listings_result = await session.execute(
+        select(ChannelListing).where(
+            ChannelListing.product_id == product.id,
+            ChannelListing.deleted_at.is_(None),
+        )
+    )
+    listings = list(listings_result.scalars().all())
+
+    for listing in listings:
+        if listing.external_id == "PENDING":
+            continue
+
+        ch_result = await session.execute(
+            select(Channel).where(
+                Channel.user_id == user_id,
+                Channel.channel_type == listing.channel_type,
+                Channel.deleted_at.is_(None),
+                Channel.is_active.is_(True),
+            )
+        )
+        channel = ch_result.scalar_one_or_none()
+        if not channel:
+            continue
+
+        gateway = None
+        try:
+            gateway = create_gateway(channel, session)  # 세션 전달 → 토큰 갱신 시 DB 자동 저장
+            await gateway.update_product(listing.external_id, product)
+            listing.sync_status = "SYNCED"
+            listing.last_synced_at = now()
+            listing.last_error = None
+            await logger.ainfo(
+                "채널 수정 동기화 성공", channel_type=listing.channel_type, external_id=listing.external_id
+            )
+        except AuthenticationError as exc:
+            # 토큰 만료 → 채널 비활성화, 재연결 안내
+            channel.is_active = False
+            listing.sync_status = "FAILED"
+            listing.last_error = f"인증 실패 (재연결 필요): {exc}"
+            await logger.awarning("채널 인증 실패 — 채널 비활성화", channel_type=listing.channel_type)
+        except ChannelResourceNotFoundError:
+            listing.sync_status = "STALE"
+            listing.last_error = "채널에서 상품을 찾을 수 없음 (404)"
+            await logger.awarning(
+                "채널 상품 없음(404) — STALE 처리", channel_type=listing.channel_type, external_id=listing.external_id
+            )
+        except Exception as exc:
+            listing.sync_status = "FAILED"
+            listing.last_error = str(exc)
+            await logger.awarning("채널 수정 동기화 실패", channel_type=listing.channel_type, error=str(exc))
+        finally:
+            if gateway:
+                with contextlib.suppress(Exception):
+                    await gateway.close()
+
+    await session.commit()
+
+
+async def _sync_delete_to_channels(
+    session, product_id: uuid.UUID, user_id: uuid.UUID, channel_types: list[str] | None = None
+) -> list[dict]:
+    """삭제 전 채널에서 상품을 제거한다. channel_types가 None이면 모든 채널.
+
+    Returns:
+        각 채널별 삭제 결과 목록 [{"channel_type": ..., "success": ..., "error": ...}]
+    """
+    from src.core.exceptions import AuthenticationError, ChannelResourceNotFoundError
+    from src.infra.channels.factory import create_gateway
+
+    listing_query = select(ChannelListing).where(
+        ChannelListing.product_id == product_id,
+        ChannelListing.deleted_at.is_(None),
+    )
+    if channel_types:
+        listing_query = listing_query.where(ChannelListing.channel_type.in_(channel_types))
+    listings_result = await session.execute(listing_query)
+    listings = list(listings_result.scalars().all())
+
+    results: list[dict] = []
+
+    for listing in listings:
+        if listing.external_id == "PENDING":
+            results.append({"channel_type": listing.channel_type, "success": True})
+            continue
+
+        ch_result = await session.execute(
+            select(Channel).where(
+                Channel.user_id == user_id,
+                Channel.channel_type == listing.channel_type,
+                Channel.deleted_at.is_(None),
+                Channel.is_active.is_(True),
+            )
+        )
+        channel = ch_result.scalar_one_or_none()
+        if not channel:
+            results.append(
+                {
+                    "channel_type": listing.channel_type,
+                    "success": False,
+                    "error": "연결된 채널을 찾을 수 없습니다",
+                }
+            )
+            continue
+
+        gateway = None
+        try:
+            gateway = create_gateway(channel, session)  # 세션 전달 → 토큰 갱신 시 DB 자동 저장
+            await gateway.delete_product(listing.external_id)
+            results.append({"channel_type": listing.channel_type, "success": True})
+            await logger.ainfo(
+                "채널 삭제 동기화 성공", channel_type=listing.channel_type, external_id=listing.external_id
+            )
+        except ChannelResourceNotFoundError:
+            # 이미 채널에서 삭제된 상품 — 성공으로 처리
+            results.append({"channel_type": listing.channel_type, "success": True})
+            await logger.ainfo(
+                "채널 상품 이미 삭제됨(404) — 정상 처리",
+                channel_type=listing.channel_type,
+                external_id=listing.external_id,
+            )
+        except AuthenticationError:
+            # 토큰 만료 → 채널 비활성화, 재연결 안내
+            channel.is_active = False
+            await session.commit()
+            results.append(
+                {
+                    "channel_type": listing.channel_type,
+                    "success": False,
+                    "error": "채널 인증이 만료되었습니다. 채널 페이지에서 재연결해 주세요.",
+                    "requires_reconnect": True,
+                }
+            )
+            await logger.awarning("채널 인증 실패 — 채널 비활성화", channel_type=listing.channel_type)
+        except Exception as exc:
+            results.append(
+                {
+                    "channel_type": listing.channel_type,
+                    "success": False,
+                    "error": str(exc),
+                }
+            )
+            await logger.awarning("채널 삭제 동기화 실패", channel_type=listing.channel_type, error=str(exc))
+        finally:
+            if gateway:
+                with contextlib.suppress(Exception):
+                    await gateway.close()
+
+    return results
 
 
 async def _publish_to_channels(session, product: Product, user_id: uuid.UUID, channel_types: list[str]) -> None:
@@ -174,7 +352,10 @@ async def _publish_to_channels(session, product: Product, user_id: uuid.UUID, ch
 async def get_product(product_id: uuid.UUID, session: SessionDep, current_user: CurrentUserDep):
     result = await session.execute(
         select(Product)
-        .options(selectinload(Product.images))
+        .options(
+            selectinload(Product.images),
+            selectinload(Product.channel_listings),
+        )
         .where(Product.id == product_id, Product.deleted_at.is_(None), Product.user_id == current_user.id)
     )
     product = result.scalar_one_or_none()
@@ -193,16 +374,35 @@ async def update_product(product_id: uuid.UUID, body: ProductUpdate, session: Se
     if not existing or existing.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다")
     product = await service.update(product_id, **updates)
+    await _sync_update_to_channels(session, product, current_user.id)
     return ApiResponse(data=product)
 
 
-@router.delete("/{product_id}", status_code=204)
-async def delete_product(product_id: uuid.UUID, session: SessionDep, current_user: CurrentUserDep):
+@router.delete("/{product_id}", response_model=ApiResponse[DeleteProductResult])
+async def delete_product(
+    product_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    channel_types: Annotated[list[str], Query()] = None,  # type: ignore[assignment]
+):
+    """상품을 삭제한다. channel_types가 지정되면 해당 채널에서도 삭제를 시도한다.
+
+    - channel_types 미지정(None): 연결된 모든 채널에서 삭제 시도
+    - channel_types 지정: 선택한 채널에서만 삭제 시도
+    - 채널 삭제 실패 시에도 로컬 삭제는 진행되며, 결과를 응답에 포함
+    """
     service = ProductService(session)
     existing = await service.get_by_id(product_id)
     if not existing or existing.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다")
+
+    selected_channels = channel_types if channel_types else None  # None = 모든 채널
+    channel_results = await _sync_delete_to_channels(
+        session, product_id, current_user.id, channel_types=selected_channels
+    )
     await service.soft_delete(product_id)
+
+    return ApiResponse(data=DeleteProductResult(channel_results=[ChannelDeleteResult(**r) for r in channel_results]))
 
 
 class ImageCreate(BaseModel):

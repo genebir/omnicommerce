@@ -13,7 +13,8 @@ class Cafe24ProductDTO(BaseModel):
     product_code: str
     product_name: str
     supply_product_name: str | None = None
-    selling_price: str
+    price: str = "0"  # 판매가 (Cafe24 실제 필드명)
+    selling_price: str | None = None  # 일부 응답에만 포함되는 경우 대비
     supply_price: str | None = None
     summary_description: str | None = None
     detail_html: str | None = None
@@ -34,7 +35,8 @@ class NormalizedProduct(BaseModel):
     cost_price: Decimal | None = None
     description: str | None = None
     category_path: str | None = None
-    status: str = "draft"
+    status: str = "INACTIVE"  # 시스템 표준: ACTIVE | INACTIVE
+    external_url: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -61,16 +63,19 @@ def parse_product(raw: dict) -> Cafe24ProductDTO:
     return Cafe24ProductDTO.model_validate(raw)
 
 
-def normalize_product(dto: Cafe24ProductDTO) -> NormalizedProduct:
-    status = "active" if dto.selling == "T" else "draft"
+def normalize_product(dto: Cafe24ProductDTO, mall_id: str = "") -> NormalizedProduct:
+    status = "ACTIVE" if dto.selling == "T" else "INACTIVE"
+    price_str = dto.selling_price or dto.price or "0"
+    external_url = f"https://{mall_id}.cafe24.com/product/detail.html?product_no={dto.product_no}" if mall_id else None
     return NormalizedProduct(
         external_id=str(dto.product_no),
         sku=dto.product_code,
         name=dto.product_name,
-        price=Decimal(dto.selling_price),
+        price=Decimal(price_str),
         cost_price=Decimal(dto.supply_price) if dto.supply_price else None,
         description=dto.summary_description,
         status=status,
+        external_url=external_url,
     )
 
 

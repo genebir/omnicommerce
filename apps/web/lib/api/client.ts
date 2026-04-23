@@ -145,8 +145,8 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  delete: <T>(path: string) =>
-    request<T>(path, { method: "DELETE" }),
+  delete: <T>(path: string, options?: RequestInit) =>
+    request<T>(path, { method: "DELETE", ...options }),
 };
 
 export { ApiClientError, API_BASE };

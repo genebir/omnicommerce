@@ -6,9 +6,9 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_paginated_response_has_data_and_meta(client):
+async def test_paginated_response_has_data_and_meta(auth_client):
     """목록 엔드포인트는 data + meta(next_cursor, has_more, total) 구조."""
-    response = await client.get("/api/v1/products")
+    response = await auth_client.get("/api/v1/products")
     assert response.status_code == 200
     body = response.json()
     assert "data" in body
@@ -55,9 +55,9 @@ async def test_config_ui_wrapped(client):
 
 
 @pytest.mark.asyncio
-async def test_error_rfc7807_format(client):
+async def test_error_rfc7807_format(auth_client):
     """에러 응답은 RFC 7807 Problem Details 형식."""
-    response = await client.get(f"/api/v1/products/{uuid.uuid4()}")
+    response = await auth_client.get(f"/api/v1/products/{uuid.uuid4()}")
     assert response.status_code == 404
     body = response.json()
     assert "type" in body

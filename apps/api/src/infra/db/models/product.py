@@ -24,6 +24,12 @@ class Product(BaseModel):
 
     images: Mapped[list["ProductImage"]] = relationship(back_populates="product", cascade="all, delete-orphan")
     options: Mapped[list["ProductOption"]] = relationship(back_populates="product", cascade="all, delete-orphan")
+    channel_listings: Mapped[list["ChannelListing"]] = relationship(  # type: ignore[name-defined]  # noqa: F821
+        "ChannelListing",
+        foreign_keys="[ChannelListing.product_id]",
+        viewonly=True,
+        lazy="noload",
+    )
 
 
 class ProductImage(BaseModel):

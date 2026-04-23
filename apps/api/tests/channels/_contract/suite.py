@@ -57,7 +57,7 @@ async def _test_list_products_returns_product_page(gateway, mock_list_products):
         assert hasattr(item, "name")
         assert hasattr(item, "price")
         assert hasattr(item, "status")
-        assert item.status in ("active", "draft")
+        assert item.status in ("ACTIVE", "INACTIVE")  # 시스템 표준 uppercase
 
 
 async def _test_list_products_pagination(gateway, mock_list_products):

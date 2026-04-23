@@ -40,19 +40,12 @@ class CoupangGateway:
         return ProductPage(items=items, next_cursor=next_cursor, total=data.get("totalElements"))
 
     async def upsert_product(self, product: object) -> ExternalId:
-        from dataclasses import asdict
-
-        payload = asdict(product) if hasattr(product, "__dataclass_fields__") else {}
+        name = getattr(product, "name", "") or ""
+        price = int(getattr(product, "price", 0) or 0)
         product_data = {
-            "sellerProductName": payload.get("name", ""),
+            "sellerProductName": name,
             "vendorId": self._client.vendor_id,
-            "items": [
-                {
-                    "itemName": payload.get("name", ""),
-                    "originalPrice": int(payload.get("price", 0)),
-                    "salePrice": int(payload.get("price", 0)),
-                }
-            ],
+            "items": [{"itemName": name, "originalPrice": price, "salePrice": price}],
         }
 
         path = "/v2/providers/seller_api/apis/api/v1/marketplace/seller-products"
@@ -62,6 +55,21 @@ class CoupangGateway:
             id=product_id,
             url=f"https://www.coupang.com/vp/products/{product_id}",
         )
+
+    async def update_product(self, external_id: str, product: object) -> None:
+        name = getattr(product, "name", "") or ""
+        price = int(getattr(product, "price", 0) or 0)
+        product_data = {
+            "sellerProductName": name,
+            "vendorId": self._client.vendor_id,
+            "items": [{"itemName": name, "originalPrice": price, "salePrice": price}],
+        }
+        path = f"/v2/providers/seller_api/apis/api/v1/marketplace/seller-products/{external_id}"
+        await self._client.put(path, json=product_data)
+
+    async def delete_product(self, external_id: str) -> None:
+        path = f"/v2/providers/seller_api/apis/api/v1/marketplace/seller-products/{external_id}"
+        await self._client.delete(path)
 
     async def update_inventory(self, sku: str, qty: int) -> None:
         path = "/v2/providers/seller_api/apis/api/v1/marketplace/vendor-items/quantities"

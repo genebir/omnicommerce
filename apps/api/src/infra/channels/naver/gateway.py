@@ -43,14 +43,11 @@ class NaverGateway:
         return ProductPage(items=items, next_cursor=next_cursor, total=data.get("totalElements"))
 
     async def upsert_product(self, product: object) -> ExternalId:
-        from dataclasses import asdict
-
-        payload = asdict(product) if hasattr(product, "__dataclass_fields__") else {}
         product_data = {
             "originProduct": {
-                "name": payload.get("name", ""),
-                "salePrice": int(payload.get("price", 0)),
-                "detailContent": payload.get("description", ""),
+                "name": getattr(product, "name", "") or "",
+                "salePrice": int(getattr(product, "price", 0) or 0),
+                "detailContent": getattr(product, "description", "") or "",
             }
         }
 
@@ -60,6 +57,19 @@ class NaverGateway:
             id=product_no,
             url=f"https://smartstore.naver.com/products/{product_no}",
         )
+
+    async def update_product(self, external_id: str, product: object) -> None:
+        product_data = {
+            "originProduct": {
+                "name": getattr(product, "name", "") or "",
+                "salePrice": int(getattr(product, "price", 0) or 0),
+                "detailContent": getattr(product, "description", "") or "",
+            }
+        }
+        await self._client.put(f"/v2/products/{external_id}", json=product_data)
+
+    async def delete_product(self, external_id: str) -> None:
+        await self._client.delete(f"/v2/products/{external_id}")
 
     async def update_inventory(self, sku: str, qty: int) -> None:
         await self._client.put(

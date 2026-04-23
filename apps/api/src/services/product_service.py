@@ -69,11 +69,21 @@ class ProductService:
         return product
 
     async def soft_delete(self, product_id: uuid.UUID) -> bool:
+        from sqlalchemy import update
+
+        from src.infra.db.models.channel_listing import ChannelListing
         from src.utils.clock import now
 
         product = await self.get_by_id(product_id)
         if not product:
             return False
-        product.deleted_at = now()
+
+        ts = now()
+        product.deleted_at = ts
+        await self._session.execute(
+            update(ChannelListing)
+            .where(ChannelListing.product_id == product_id, ChannelListing.deleted_at.is_(None))
+            .values(deleted_at=ts)
+        )
         await self._session.commit()
         return True

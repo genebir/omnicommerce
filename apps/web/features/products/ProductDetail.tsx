@@ -1,29 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Edit, Package, Trash2, ImageIcon, Plus, X } from "lucide-react";
+import { ArrowLeft, Edit, Package, Trash2, ImageIcon, Plus, X, ExternalLink, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ChannelBadge, SyncStatus } from "@/components/patterns";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useDeleteProduct, useAddProductImage, useDeleteProductImage } from "@/lib/hooks";
+import { useDeleteProduct, useAddProductImage, useDeleteProductImage, type ChannelListingInfo } from "@/lib/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownItem,
   DropdownSeparator,
 } from "@/components/ui/dropdown-menu";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
-
-interface ChannelListing {
-  channelCode: string;
-  externalId: string;
-  syncStatus: "synced" | "syncing" | "pending" | "failed";
-  lastSyncedAt: string;
-}
 
 interface ProductImage {
   id: string;
@@ -42,12 +37,107 @@ interface ProductDetailData {
   status: string;
   createdAt: string;
   updatedAt: string;
-  channelListings: ChannelListing[];
+  channel_listings: ChannelListingInfo[];
   images: ProductImage[];
 }
 
 interface ProductDetailProps {
   product?: ProductDetailData | null;
+}
+
+/** sync_status를 SyncStatus 컴포넌트 형식으로 변환 */
+function toSyncStatus(status: string): "synced" | "syncing" | "pending" | "failed" {
+  const map: Record<string, "synced" | "syncing" | "pending" | "failed"> = {
+    SYNCED: "synced",
+    PENDING: "pending",
+    FAILED: "failed",
+    STALE: "pending",
+  };
+  return map[status] ?? "pending";
+}
+
+/** 채널 선택 삭제 다이얼로그 */
+function DeleteWithChannelsDialog({
+  open,
+  onOpenChange,
+  productName,
+  channelListings,
+  onConfirm,
+  loading,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  productName: string;
+  channelListings: ChannelListingInfo[];
+  onConfirm: (channelTypes: string[]) => void;
+  loading: boolean;
+}) {
+  const t = useTranslations("products");
+  const tc = useTranslations("common");
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(channelListings.map((cl) => cl.channel_type))
+  );
+
+  function handleOpenChange(v: boolean) {
+    if (v) setSelected(new Set(channelListings.map((cl) => cl.channel_type)));
+    onOpenChange(v);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-state-error">{t("deleteTitle")}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <p className="text-sm text-text-secondary">
+            <span className="font-medium text-text-primary">{productName}</span>
+            {t("deleteConfirmSuffix")}
+          </p>
+
+          {channelListings.length > 0 && (
+            <div className="rounded-xl border border-border-subtle bg-bg-surface-2 p-4 space-y-3">
+              <p className="text-xs font-medium text-text-tertiary uppercase tracking-wide">
+                {t("deleteChannelLabel")}
+              </p>
+              {channelListings.map((cl) => (
+                <label key={cl.channel_type} className="flex cursor-pointer items-center gap-3">
+                  <Checkbox
+                    checked={selected.has(cl.channel_type)}
+                    onCheckedChange={(checked) => {
+                      const next = new Set(selected);
+                      if (checked) next.add(cl.channel_type);
+                      else next.delete(cl.channel_type);
+                      setSelected(next);
+                    }}
+                  />
+                  <ChannelBadge code={cl.channel_type} />
+                  <span className="font-mono text-xs text-text-tertiary">
+                    #{cl.external_id}
+                  </span>
+                </label>
+              ))}
+              <p className="text-xs text-text-tertiary">{t("deleteChannelHint")}</p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>
+            {tc("cancel")}
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => onConfirm(Array.from(selected))}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="size-4 animate-spin" /> : tc("delete")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export function ProductDetail({ product }: ProductDetailProps) {
@@ -65,10 +155,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
       <div className="flex flex-col items-center justify-center gap-4 py-24">
         <Package className="size-12 text-text-tertiary" />
         <p className="text-text-secondary">{t("notFound")}</p>
-        <Link
-          href="/products"
-          className="text-sm text-accent-iris hover:underline"
-        >
+        <Link href="/products" className="text-sm text-accent-iris hover:underline">
           {tc("back")}
         </Link>
       </div>
@@ -82,6 +169,26 @@ export function ProductDetail({ product }: ProductDetailProps) {
     { id: "inventory", label: t("inventoryInfo") },
   ];
 
+  async function handleDelete(channelTypes: string[]) {
+    const res = await deleteProduct.mutateAsync({ id: product!.id, channelTypes });
+    const results = res?.data?.channel_results ?? [];
+    const needsReconnect = results.some((r) => r.requires_reconnect);
+    const failed = results.filter((r) => !r.success);
+
+    if (needsReconnect) {
+      toast.error(t("deleteAuthExpired"), {
+        action: { label: t("goToChannels"), onClick: () => router.push("/channels") },
+        duration: 8000,
+      });
+    } else if (failed.length > 0) {
+      const names = failed.map((r) => r.channel_type).join(", ");
+      toast.warning(t("deleteChannelFailed", { channels: names }));
+    } else {
+      toast.success(t("deleteSuccess"));
+    }
+    router.push("/products");
+  }
+
   return (
     <div className="space-y-6">
       {/* 헤더 */}
@@ -94,13 +201,19 @@ export function ProductDetail({ product }: ProductDetailProps) {
           <ArrowLeft className="size-5" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-text-primary">
-            {product.name}
-          </h1>
-          <p className="mt-0.5 font-mono text-sm text-text-tertiary">
-            {product.sku}
-          </p>
+          <h1 className="text-2xl font-bold text-text-primary">{product.name}</h1>
+          <p className="mt-0.5 font-mono text-sm text-text-tertiary">{product.sku}</p>
         </div>
+
+        {/* 연결된 채널 배지 — 헤더에도 표시 */}
+        {product.channel_listings.length > 0 && (
+          <div className="flex gap-1.5">
+            {product.channel_listings.map((cl) => (
+              <ChannelBadge key={cl.channel_type} code={cl.channel_type} />
+            ))}
+          </div>
+        )}
+
         <DropdownMenu
           trigger={
             <button
@@ -128,20 +241,13 @@ export function ProductDetail({ product }: ProductDetailProps) {
         </DropdownMenu>
       </div>
 
-      <ConfirmDialog
+      <DeleteWithChannelsDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
-        title={t("deleteProduct")}
-        description={t("deleteConfirm")}
-        confirmLabel={tc("delete")}
-        cancelLabel={tc("cancel")}
-        destructive
+        productName={product.name}
+        channelListings={product.channel_listings}
+        onConfirm={handleDelete}
         loading={deleteProduct.isPending}
-        onConfirm={async () => {
-          await deleteProduct.mutateAsync(product.id);
-          toast.success(t("deleteSuccess"));
-          router.push("/products");
-        }}
       />
 
       {/* 탭 */}
@@ -157,20 +263,10 @@ export function ProductDetail({ product }: ProductDetailProps) {
                   <CardContent className="space-y-3">
                     <InfoRow label={t("fieldName")} value={product.name} />
                     <InfoRow label={t("fieldSku")} value={product.sku} mono />
-                    <InfoRow
-                      label={t("fieldPrice")}
-                      value={formatCurrency(product.price)}
-                      mono
-                    />
+                    <InfoRow label={t("fieldPrice")} value={formatCurrency(product.price)} mono />
                     <InfoRow label={t("status")} value={product.status} />
-                    <InfoRow
-                      label={t("createdAt")}
-                      value={formatDate(product.createdAt)}
-                    />
-                    <InfoRow
-                      label={t("updatedAt")}
-                      value={formatDate(product.updatedAt)}
-                    />
+                    <InfoRow label={t("createdAt")} value={formatDate(product.createdAt)} />
+                    <InfoRow label={t("updatedAt")} value={formatDate(product.updatedAt)} />
                   </CardContent>
                 </Card>
 
@@ -262,29 +358,32 @@ export function ProductDetail({ product }: ProductDetailProps) {
                   <CardTitle>{t("channelListings")}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {product.channelListings.length === 0 ? (
+                  {product.channel_listings.length === 0 ? (
                     <p className="py-8 text-center text-sm text-text-tertiary">
                       {t("noListings")}
                     </p>
                   ) : (
                     <div className="divide-y divide-border-subtle">
-                      {product.channelListings.map((listing) => (
-                        <div
-                          key={listing.channelCode}
-                          className="flex items-center justify-between py-3"
-                        >
+                      {product.channel_listings.map((cl) => (
+                        <div key={cl.channel_type} className="flex items-center justify-between py-4">
                           <div className="flex items-center gap-3">
-                            <ChannelBadge code={listing.channelCode} />
+                            <ChannelBadge code={cl.channel_type} />
                             <span className="font-mono text-xs text-text-secondary">
-                              {listing.externalId}
+                              #{cl.external_id}
                             </span>
+                            {cl.external_url && (
+                              <a
+                                href={cl.external_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-text-tertiary hover:text-accent-iris transition-colors"
+                                aria-label="채널 페이지 열기"
+                              >
+                                <ExternalLink className="size-3.5" />
+                              </a>
+                            )}
                           </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-text-tertiary">
-                              {formatDate(listing.lastSyncedAt)}
-                            </span>
-                            <SyncStatus status={listing.syncStatus} />
-                          </div>
+                          <SyncStatus status={toSyncStatus(cl.sync_status)} />
                         </div>
                       ))}
                     </div>
@@ -300,10 +399,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-4 sm:grid-cols-3">
-                    <StatBlock
-                      label={t("fieldStock")}
-                      value={String(product.stock)}
-                    />
+                    <StatBlock label={t("fieldStock")} value={String(product.stock)} />
                   </div>
                 </CardContent>
               </Card>
@@ -315,23 +411,11 @@ export function ProductDetail({ product }: ProductDetailProps) {
   );
 }
 
-function InfoRow({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
+function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-sm text-text-tertiary">{label}</span>
-      <span
-        className={`text-sm text-text-primary ${mono ? "font-mono" : ""}`}
-      >
-        {value}
-      </span>
+      <span className={`text-sm text-text-primary ${mono ? "font-mono" : ""}`}>{value}</span>
     </div>
   );
 }
@@ -340,9 +424,7 @@ function StatBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl bg-bg-canvas p-4">
       <p className="text-xs text-text-tertiary">{label}</p>
-      <p className="mt-1 font-mono text-2xl font-bold text-text-primary">
-        {value}
-      </p>
+      <p className="mt-1 font-mono text-2xl font-bold text-text-primary">{value}</p>
     </div>
   );
 }

@@ -27,7 +27,8 @@ class NormalizedProduct(BaseModel):
     price: Decimal
     cost_price: Decimal | None = None
     description: str | None = None
-    status: str = "draft"
+    status: str = "INACTIVE"
+    external_url: str | None = None
 
 
 class CoupangOrderDTO(BaseModel):
@@ -53,7 +54,7 @@ def parse_product(raw: dict) -> CoupangProductDTO:
 
 
 def normalize_product(dto: CoupangProductDTO) -> NormalizedProduct:
-    status = "active" if dto.statusName == "승인완료" else "draft"
+    status = "ACTIVE" if dto.statusName == "승인완료" else "INACTIVE"
     return NormalizedProduct(
         external_id=str(dto.sellerProductId),
         sku=dto.sellerProductItemId or str(dto.sellerProductId),

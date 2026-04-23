@@ -26,6 +26,10 @@ class Cafe24Gateway:
         self._mall_id = mall_id
         self._client = Cafe24Client(mall_id, access_token, refresh_token, client_id, client_secret)
 
+    def set_token_refresh_callback(self, callback) -> None:
+        """토큰 갱신 후 DB 저장 콜백을 클라이언트에 연결한다."""
+        self._client.set_token_refresh_callback(callback)
+
     async def close(self) -> None:
         await self._client.close()
 
@@ -40,7 +44,7 @@ class Cafe24Gateway:
         items = []
         for raw in products_raw:
             dto = parse_product(raw)
-            normalized = normalize_product(dto)
+            normalized = normalize_product(dto, mall_id=self._mall_id)
             items.append(normalized)
 
         next_cursor = None
@@ -50,19 +54,16 @@ class Cafe24Gateway:
 
         return ProductPage(items=items, next_cursor=next_cursor, total=data.get("count"))
 
-    async def upsert_product(self, product: object) -> ExternalId:
-        from dataclasses import asdict
-
-        payload = asdict(product) if hasattr(product, "__dataclass_fields__") else {}
-        product_data = {
-            "request": {
-                "product_name": payload.get("name", ""),
-                "selling_price": str(payload.get("price", 0)),
-                "supply_product_name": payload.get("sku", ""),
-                "summary_description": payload.get("description", ""),
-            }
+    def _build_product_payload(self, product: object) -> dict:
+        return {
+            "product_name": getattr(product, "name", "") or "",
+            "selling_price": str(getattr(product, "price", 0) or 0),
+            "supply_product_name": getattr(product, "sku", "") or "",
+            "summary_description": getattr(product, "description", "") or "",
         }
 
+    async def upsert_product(self, product: object) -> ExternalId:
+        product_data = {"request": self._build_product_payload(product)}
         data = await self._client.post("/admin/products", json=product_data)
         product_info = data.get("product", {})
         product_no = str(product_info.get("product_no", ""))
@@ -70,6 +71,13 @@ class Cafe24Gateway:
             id=product_no,
             url=f"https://{self._mall_id}.cafe24.com/product/detail.html?product_no={product_no}",
         )
+
+    async def update_product(self, external_id: str, product: object) -> None:
+        product_data = {"request": self._build_product_payload(product)}
+        await self._client.put(f"/admin/products/{external_id}", json=product_data)
+
+    async def delete_product(self, external_id: str) -> None:
+        await self._client.delete(f"/admin/products/{external_id}")
 
     async def update_inventory(self, sku: str, qty: int) -> None:
         await self._client.put(

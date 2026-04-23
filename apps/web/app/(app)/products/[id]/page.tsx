@@ -23,7 +23,7 @@ export default function ProductDetailPage() {
         status: data.data.status,
         createdAt: data.data.created_at ?? "",
         updatedAt: data.data.updated_at ?? "",
-        channelListings: [],
+        channel_listings: data.data.channel_listings ?? [],
         images: data.data.images?.map((img) => ({
           id: String(img.id),
           url: img.url,

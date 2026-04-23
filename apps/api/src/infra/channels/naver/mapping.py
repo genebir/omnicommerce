@@ -26,7 +26,8 @@ class NormalizedProduct(BaseModel):
     name: str
     price: Decimal
     description: str | None = None
-    status: str = "draft"
+    status: str = "INACTIVE"
+    external_url: str | None = None
 
 
 class NaverOrderDTO(BaseModel):
@@ -49,7 +50,7 @@ def parse_product(raw: dict) -> NaverProductDTO:
 
 
 def normalize_product(dto: NaverProductDTO) -> NormalizedProduct:
-    status = "active" if dto.statusType == "SALE" else "draft"
+    status = "ACTIVE" if dto.statusType == "SALE" else "INACTIVE"
     return NormalizedProduct(
         external_id=str(dto.originProductNo),
         sku=dto.modelName or str(dto.originProductNo),

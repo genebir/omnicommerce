@@ -7,11 +7,13 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { DataTable } from "@/components/patterns/DataTable";
+import { ChannelBadge } from "@/components/patterns/ChannelBadge";
 import { formatCurrency } from "@/lib/utils/format";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useProducts, useDeleteProduct } from "@/lib/hooks";
+import { useProducts, useDeleteProduct, type ChannelListingInfo } from "@/lib/hooks";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface ProductRow {
   id: string;
@@ -19,15 +21,150 @@ interface ProductRow {
   sku: string;
   price: number;
   status: string;
+  channel_listings: ChannelListingInfo[];
 }
 
 const columnHelper = createColumnHelper<ProductRow>();
+
+/** 단건 삭제 시 채널 선택 다이얼로그 */
+function DeleteWithChannelsDialog({
+  open,
+  onOpenChange,
+  product,
+  onConfirm,
+  loading,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  product: ProductRow | null;
+  onConfirm: (channelTypes: string[]) => void;
+  loading: boolean;
+}) {
+  const t = useTranslations("products");
+  const tc = useTranslations("common");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  function handleOpenChange(v: boolean) {
+    if (v && product) {
+      setSelected(new Set(product.channel_listings.map((cl) => cl.channel_type)));
+    }
+    onOpenChange(v);
+  }
+
+  if (!product) return null;
+
+  const hasChannels = product.channel_listings.length > 0;
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-state-error">{t("deleteTitle")}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <p className="text-sm text-text-secondary">
+            <span className="font-medium text-text-primary">{product.name}</span>
+            {t("deleteConfirmSuffix")}
+          </p>
+
+          {hasChannels && (
+            <div className="rounded-xl border border-border-subtle bg-bg-surface-2 p-4 space-y-3">
+              <p className="text-xs font-medium text-text-tertiary uppercase tracking-wide">
+                {t("deleteChannelLabel")}
+              </p>
+              {product.channel_listings.map((cl) => (
+                <label
+                  key={cl.channel_type}
+                  className="flex cursor-pointer items-center gap-3"
+                >
+                  <Checkbox
+                    checked={selected.has(cl.channel_type)}
+                    onCheckedChange={(checked) => {
+                      const next = new Set(selected);
+                      if (checked) next.add(cl.channel_type);
+                      else next.delete(cl.channel_type);
+                      setSelected(next);
+                    }}
+                  />
+                  <ChannelBadge code={cl.channel_type} />
+                  <span className="font-mono text-xs text-text-tertiary">
+                    #{cl.external_id}
+                  </span>
+                </label>
+              ))}
+              <p className="text-xs text-text-tertiary">
+                {t("deleteChannelHint")}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>
+            {tc("cancel")}
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => onConfirm(Array.from(selected))}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="size-4 animate-spin" /> : tc("delete")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** 일괄 삭제 확인 다이얼로그 */
+function BulkDeleteDialog({
+  open,
+  onOpenChange,
+  count,
+  onConfirm,
+  loading,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  count: number;
+  onConfirm: () => void;
+  loading: boolean;
+}) {
+  const t = useTranslations("products");
+  const tc = useTranslations("common");
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-state-error">{t("bulkDeleteTitle")}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-text-secondary py-2">
+          {t("bulkDeleteConfirm", { count })}
+        </p>
+        <p className="text-xs text-text-tertiary">
+          {t("bulkDeleteChannelHint")}
+        </p>
+        <DialogFooter className="gap-2 pt-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>
+            {tc("cancel")}
+          </Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={loading}>
+            {loading ? <Loader2 className="size-4 animate-spin" /> : tc("delete")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function ProductsTable() {
   const t = useTranslations("products");
   const tc = useTranslations("common");
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null);
   const [q, setQ] = useQueryState("q", { defaultValue: "" });
   const [statusFilter, setStatusFilter] = useQueryState("status", { defaultValue: "" });
   const { data, isLoading, error, hasNextPage, fetchNextPage, isFetchingNextPage } = useProducts({
@@ -44,6 +181,7 @@ export function ProductsTable() {
         sku: p.sku,
         price: p.price,
         status: p.status,
+        channel_listings: p.channel_listings ?? [],
       })),
     ) ?? [];
 
@@ -68,7 +206,7 @@ export function ProductsTable() {
     }),
     columnHelper.accessor("name", {
       header: t("columnName"),
-      size: 280,
+      size: 260,
       cell: (info) => (
         <Link
           href={`/products/${info.row.original.id}`}
@@ -80,21 +218,38 @@ export function ProductsTable() {
     }),
     columnHelper.accessor("sku", {
       header: t("columnSku"),
-      size: 140,
+      size: 130,
       cell: (info) => (
         <span className="font-mono text-xs text-text-secondary">{info.getValue()}</span>
       ),
     }),
+    columnHelper.accessor("channel_listings", {
+      header: t("columnChannels"),
+      size: 160,
+      cell: (info) => {
+        const listings = info.getValue();
+        if (!listings.length) {
+          return <span className="text-xs text-text-tertiary">—</span>;
+        }
+        return (
+          <div className="flex flex-wrap gap-1">
+            {listings.map((cl) => (
+              <ChannelBadge key={cl.channel_type} code={cl.channel_type} />
+            ))}
+          </div>
+        );
+      },
+    }),
     columnHelper.accessor("price", {
       header: t("columnPrice"),
-      size: 120,
+      size: 110,
       cell: (info) => (
         <span className="font-mono">{formatCurrency(info.getValue())}</span>
       ),
     }),
     columnHelper.accessor("status", {
       header: t("status"),
-      size: 100,
+      size: 90,
       cell: (info) => {
         const status = info.getValue();
         return (
@@ -107,6 +262,23 @@ export function ProductsTable() {
           </span>
         );
       },
+    }),
+    columnHelper.display({
+      id: "actions",
+      size: 48,
+      cell: ({ row }) => (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setDeleteTarget(row.original);
+          }}
+          className="cursor-pointer rounded-lg p-1.5 text-text-tertiary opacity-0 transition-all hover:bg-state-error/10 hover:text-state-error group-hover:opacity-100"
+          aria-label="삭제"
+        >
+          <Trash2 className="size-3.5" />
+        </button>
+      ),
     }),
   ];
 
@@ -131,12 +303,34 @@ export function ProductsTable() {
     .map((idx) => products[Number(idx)]?.id)
     .filter(Boolean);
 
+  async function handleSingleDelete(channelTypes: string[]) {
+    if (!deleteTarget) return;
+    const res = await deleteProduct.mutateAsync({ id: deleteTarget.id, channelTypes });
+    setDeleteTarget(null);
+
+    const results = res?.data?.channel_results ?? [];
+    const needsReconnect = results.some((r) => r.requires_reconnect);
+    const failed = results.filter((r) => !r.success);
+
+    if (needsReconnect) {
+      toast.error(t("deleteAuthExpired"), {
+        action: { label: t("goToChannels"), onClick: () => window.location.href = "/channels" },
+        duration: 8000,
+      });
+    } else if (failed.length > 0) {
+      const names = failed.map((r) => r.channel_type).join(", ");
+      toast.warning(t("deleteChannelFailed", { channels: names }));
+    } else {
+      toast.success(t("deleteSuccess"));
+    }
+  }
+
   async function handleBulkDelete() {
     for (const id of selectedIds) {
-      await deleteProduct.mutateAsync(id);
+      await deleteProduct.mutateAsync({ id });
     }
     setRowSelection({});
-    setShowDeleteConfirm(false);
+    setShowBulkDelete(false);
     toast.success(t("bulkDeleteSuccess", { count: selectedIds.length }));
   }
 
@@ -171,7 +365,7 @@ export function ProductsTable() {
           </span>
           <button
             type="button"
-            onClick={() => setShowDeleteConfirm(true)}
+            onClick={() => setShowBulkDelete(true)}
             className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-state-error transition-colors hover:bg-state-error/10"
           >
             <Trash2 className="size-3.5" />
@@ -180,16 +374,22 @@ export function ProductsTable() {
         </div>
       )}
 
-      <ConfirmDialog
-        open={showDeleteConfirm}
-        onOpenChange={setShowDeleteConfirm}
-        title={t("bulkDeleteTitle")}
-        description={t("bulkDeleteConfirm", { count: selectedIds.length })}
-        confirmLabel={tc("delete")}
-        cancelLabel={tc("cancel")}
-        destructive
+      {/* 단건 삭제 — 채널 선택 */}
+      <DeleteWithChannelsDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        product={deleteTarget}
+        onConfirm={handleSingleDelete}
         loading={deleteProduct.isPending}
+      />
+
+      {/* 일괄 삭제 — 간단 확인 */}
+      <BulkDeleteDialog
+        open={showBulkDelete}
+        onOpenChange={setShowBulkDelete}
+        count={selectedIds.length}
         onConfirm={handleBulkDelete}
+        loading={deleteProduct.isPending}
       />
 
       <DataTable

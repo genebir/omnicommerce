@@ -3,6 +3,24 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
+export interface ChannelListingInfo {
+  channel_type: string;
+  external_id: string;
+  sync_status: string;
+  external_url: string | null;
+}
+
+export interface ChannelDeleteResult {
+  channel_type: string;
+  success: boolean;
+  error?: string | null;
+  requires_reconnect?: boolean;
+}
+
+export interface DeleteProductResult {
+  channel_results: ChannelDeleteResult[];
+}
+
 interface ProductImage {
   id: string;
   url: string;
@@ -10,7 +28,7 @@ interface ProductImage {
   alt_text: string | null;
 }
 
-interface Product {
+export interface Product {
   id: string;
   name: string;
   sku: string;
@@ -21,6 +39,7 @@ interface Product {
   status: string;
   created_at: string | null;
   updated_at: string | null;
+  channel_listings: ChannelListingInfo[];
   images?: ProductImage[];
 }
 
@@ -104,7 +123,14 @@ export function useUpdateProduct(id: string) {
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.delete(`/products/${id}`),
+    mutationFn: ({ id, channelTypes }: { id: string; channelTypes?: string[] }) => {
+      const params = new URLSearchParams();
+      if (channelTypes && channelTypes.length > 0) {
+        channelTypes.forEach((ct) => params.append("channel_types", ct));
+      }
+      const qs = params.toString();
+      return api.delete<DeleteProductResult>(`/products/${id}${qs ? `?${qs}` : ""}`);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
     },

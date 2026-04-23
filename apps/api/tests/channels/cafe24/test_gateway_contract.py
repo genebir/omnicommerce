@@ -85,6 +85,8 @@ async def test_token_refresh_on_401():
         mall_id="test-mall",
         access_token="expired-token",
         refresh_token="valid-refresh-token",
+        client_id="test-client-id",
+        client_secret="test-client-secret",  # pragma: allowlist secret
     )
 
     call_count = 0

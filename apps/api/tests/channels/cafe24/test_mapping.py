@@ -34,25 +34,27 @@ def test_normalize_product():
         "selling": "T",
     }
     dto = parse_product(raw)
-    norm = normalize_product(dto)
+    norm = normalize_product(dto, mall_id="testmall")
     assert norm.external_id == "99"
     assert norm.sku == "SKU-99"
     assert norm.name == "정규화 테스트"
     assert norm.price == Decimal("15000")
-    assert norm.status == "active"
+    assert norm.status == "ACTIVE"
+    assert norm.external_url == "https://testmall.cafe24.com/product/detail.html?product_no=99"
 
 
-def test_normalize_draft_product():
+def test_normalize_inactive_product():
     raw = {
         "product_no": 100,
-        "product_code": "SKU-DRAFT",
+        "product_code": "SKU-INACTIVE",
         "product_name": "비활성 상품",
         "selling_price": "5000",
         "selling": "F",
     }
     dto = parse_product(raw)
     norm = normalize_product(dto)
-    assert norm.status == "draft"
+    assert norm.status == "INACTIVE"
+    assert norm.external_url is None  # mall_id 없으면 None
 
 
 def test_map_order_status():

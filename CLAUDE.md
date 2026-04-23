@@ -940,6 +940,16 @@ make doctor   # 아래 전부 수행
 - [x] **상품 이미지 관리 UI**: ProductDetail 이미지 탭에 URL 입력으로 이미지 추가 + 호버 시 삭제 버튼, useAddProductImage/useDeleteProductImage 훅
 - [x] **주문 목록 날짜 컬럼**: OrdersTable에 주문일시(orderedAt) 컬럼 추가, 백엔드 OrderResponse에 ordered_at 필드 추가
 - [x] **관리자 설정 UI (`/admin/settings`)** (§9.10): `GET/PATCH/history/rollback` 엔드포인트 5개, AdminSettingsContent(검색/스코프 필터, 커서 페이지네이션, 타입별 컬러), SettingEditDialog(JSON 검증), SettingHistoryDrawer(타임라인+롤백), 시크릿 마스킹, i18n 37키
+- [x] **Naver/Coupang 상태값 정규화**: 매핑 파이프라인에서 `"active"`/`"draft"` → `"ACTIVE"`/`"INACTIVE"` 대문자 통일, 관련 단위 테스트 갱신
+- [x] **`with_loader_criteria` SQLAlchemy 버그 수정**: `selectinload(Product.channel_listings)` + `with_loader_criteria` 조합 시 channel_listings 항상 빈 배열 반환 문제 — `with_loader_criteria` 제거로 해결 (soft_delete가 product+listings 동시 처리하므로 안전)
+- [x] **채널 삭제 연동 (`DELETE /products/{id}`)**: 응답을 `204 No Content` → `200 OK + ApiResponse[DeleteProductResult]`로 변경, `channel_types` 쿼리 파라미터로 삭제할 채널 선택 가능
+- [x] **`ChannelDeleteResult` / `DeleteProductResult` 스키마**: `channel_type`, `success`, `error`, `requires_reconnect` 필드 — 채널별 삭제 결과를 프론트에 상세 전달
+- [x] **AuthenticationError 자동 채널 비활성화**: 채널 CRUD 시 인증 만료(401) 발생 → 해당 채널 `is_active=False` 마킹 + `requires_reconnect: true` 응답 반환
+- [x] **토큰 갱신 DB 지속 (Token Refresh Persistence)**: `Cafe24Client`에 `TokenRefreshCallback` 타입 + `set_token_refresh_callback()` 추가, 토큰 갱신 성공 후 DB에 즉시 저장 (재시작 시 만료 토큰 재사용 버그 수정)
+- [x] **`create_gateway(channel, session)` 팩토리 개선**: `session` 파라미터 추가, Cafe24 게이트웨이에 자동으로 토큰 갱신 콜백 주입 (`infra/channels/factory.py`)
+- [x] **상품 삭제 채널 선택 다이얼로그**: ProductDetail·ProductsTable 양쪽에서 채널별 체크박스로 어떤 채널에서 삭제할지 선택 후 확인, `requires_reconnect` 응답 시 "채널 페이지로" 액션 토스트 표시
+- [x] **채널 상품 import 로직 개선**: 이미 등록된 상품을 재가져올 때 SKU 매칭 → 기존 상품에 `ChannelListing` 추가(external_url, last_synced_at 갱신), savepoint 내부에서 중복 체크로 트랜잭션 안전성 강화
+- [x] **i18n 키 추가** (`ko.json`/`en.json`): `deleteChannelFailed`, `deleteAuthExpired`, `goToChannels` 3키 추가
 
 ### 16.2 미구현 (TODO)
 - [ ] 다중 창고(WMS) 연동은 v2 범위
