@@ -1,0 +1,100 @@
+"use client";
+
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+
+interface Order {
+  id: string;
+  channel_type: string;
+  external_order_id: string;
+  buyer_name: string | null;
+  total_amount: number;
+  shipping_fee: number;
+  status: string;
+  ordered_at: string | null;
+}
+
+interface OrderItemDetail {
+  id: string;
+  name: string;
+  quantity: number;
+  unit_price: number;
+}
+
+interface OrderDetail {
+  id: string;
+  channel_type: string;
+  external_order_id: string;
+  status: string;
+  buyer_name: string | null;
+  buyer_phone: string | null;
+  buyer_email: string | null;
+  recipient_name: string | null;
+  recipient_phone: string | null;
+  recipient_address: string | null;
+  total_amount: number;
+  shipping_fee: number;
+  ordered_at: string | null;
+  paid_at: string | null;
+  shipped_at: string | null;
+  items: OrderItemDetail[];
+}
+
+interface OrdersPage {
+  items: Order[];
+  total: number;
+  next_cursor?: string;
+  has_more: boolean;
+}
+
+interface OrdersFilter {
+  q?: string;
+  status?: string;
+}
+
+export function useOrders(filter: OrdersFilter = {}) {
+  return useInfiniteQuery({
+    queryKey: ["orders", filter],
+    queryFn: async ({ pageParam }: { pageParam: string | undefined }) => {
+      const params = new URLSearchParams();
+      if (pageParam) params.set("cursor", pageParam);
+      if (filter.q) params.set("q", filter.q);
+      if (filter.status) params.set("status", filter.status);
+      const qs = params.toString();
+      const res = await api.get<Order[]>(
+        `/orders${qs ? `?${qs}` : ""}`,
+      );
+      return {
+        items: res.data,
+        total: res.meta?.total ?? 0,
+        next_cursor: res.meta?.next_cursor,
+        has_more: res.meta?.has_more ?? false,
+      } as OrdersPage;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.has_more ? lastPage.next_cursor : undefined,
+  });
+}
+
+export function useOrder(id: string) {
+  return useQuery({
+    queryKey: ["orders", id],
+    queryFn: () => api.get<OrderDetail>(`/orders/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useUpdateOrderStatus(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (status: string) =>
+      api.patch<OrderDetail>(`/orders/${id}/status`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orders", id] });
+    },
+  });
+}
+
+export type { Order, OrderDetail, OrderItemDetail, OrdersPage };

@@ -1,0 +1,240 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* shadcn dark: 변형을 data-theme 속성과 연동 */
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+/* ── §3.1 Primitive 팔레트 ── */
+:root {
+  /* Navy scale — 메인 브랜드 */
+  --navy-50:  #EEF2FB;
+  --navy-100: #D6DFF2;
+  --navy-200: #AEBEE4;
+  --navy-300: #7F93CE;
+  --navy-400: #4F6AB2;
+  --navy-500: #2E4A93;
+  --navy-600: #203975;
+  --navy-700: #172B59;
+  --navy-800: #0F1E42;
+  --navy-900: #0A1530;
+  --navy-950: #060E22;
+
+  /* Accent */
+  --accent-iris:   #8B7CF6;
+  --accent-aurora:  #5EE3C7;
+  --accent-amber:  #F5A524;
+  --accent-coral:  #F25F5C;
+
+  /* Neutral */
+  --ink-0:   #FFFFFF;
+  --ink-50:  #F5F7FB;
+  --ink-900: #0B1020;
+
+  --radius: 0.625rem;
+}
+
+/* ── §3.2 Semantic (다크 모드 기본) ── */
+:root[data-theme="dark"],
+:root {
+  --bg-canvas:    var(--navy-950);
+  --bg-surface:   var(--navy-900);
+  --bg-surface-2: var(--navy-800);
+  --bg-sidebar:   color-mix(in oklab, var(--navy-950) 85%, #000);
+  --bg-elevated:  var(--navy-700);
+
+  --border-subtle: color-mix(in oklab, var(--navy-100) 8%, transparent);
+  --border-strong: color-mix(in oklab, var(--navy-100) 16%, transparent);
+
+  --text-primary:   var(--ink-0);
+  --text-secondary: color-mix(in oklab, var(--ink-0) 72%, transparent);
+  --text-tertiary:  color-mix(in oklab, var(--ink-0) 48%, transparent);
+
+  --ring-focus:    var(--accent-iris);
+  --state-success: var(--accent-aurora);
+  --state-warn:    var(--accent-amber);
+  --state-error:   var(--accent-coral);
+
+  /* shadcn 토큰 → Navy 매핑 */
+  --background:           var(--navy-950);
+  --foreground:           var(--ink-0);
+  --card:                 var(--navy-900);
+  --card-foreground:      var(--ink-0);
+  --popover:              var(--navy-800);
+  --popover-foreground:   var(--ink-0);
+  --primary:              var(--accent-iris);
+  --primary-foreground:   var(--ink-0);
+  --secondary:            var(--navy-800);
+  --secondary-foreground: var(--ink-0);
+  --muted:                var(--navy-800);
+  --muted-foreground:     color-mix(in oklab, var(--ink-0) 60%, transparent);
+  --accent:               var(--navy-800);
+  --accent-foreground:    var(--ink-0);
+  --destructive:          var(--accent-coral);
+  --border:               color-mix(in oklab, var(--navy-100) 10%, transparent);
+  --input:                color-mix(in oklab, var(--navy-100) 16%, transparent);
+  --ring:                 var(--accent-iris);
+  --chart-1:              var(--accent-iris);
+  --chart-2:              var(--accent-aurora);
+  --chart-3:              var(--accent-amber);
+  --chart-4:              var(--accent-coral);
+  --chart-5:              var(--navy-400);
+  --sidebar:              var(--navy-950);
+  --sidebar-foreground:   var(--ink-0);
+  --sidebar-primary:      var(--accent-iris);
+  --sidebar-primary-foreground: var(--ink-0);
+  --sidebar-accent:       var(--navy-800);
+  --sidebar-accent-foreground:  var(--ink-0);
+  --sidebar-border:       color-mix(in oklab, var(--navy-100) 8%, transparent);
+  --sidebar-ring:         var(--accent-iris);
+}
+
+:root[data-theme="light"] {
+  --bg-canvas:    var(--ink-50);
+  --bg-surface:   var(--ink-0);
+  --bg-surface-2: var(--navy-50);
+  --bg-sidebar:   var(--ink-0);
+  --bg-elevated:  var(--ink-0);
+
+  --border-subtle: color-mix(in oklab, var(--navy-900) 8%, transparent);
+  --border-strong: color-mix(in oklab, var(--navy-900) 16%, transparent);
+
+  --text-primary:   var(--ink-900);
+  --text-secondary: color-mix(in oklab, var(--ink-900) 72%, transparent);
+  --text-tertiary:  color-mix(in oklab, var(--ink-900) 48%, transparent);
+
+  /* shadcn 토큰 → 라이트 매핑 */
+  --background:           var(--ink-50);
+  --foreground:           var(--ink-900);
+  --card:                 var(--ink-0);
+  --card-foreground:      var(--ink-900);
+  --popover:              var(--ink-0);
+  --popover-foreground:   var(--ink-900);
+  --primary:              var(--accent-iris);
+  --primary-foreground:   var(--ink-0);
+  --secondary:            var(--navy-50);
+  --secondary-foreground: var(--ink-900);
+  --muted:                var(--navy-50);
+  --muted-foreground:     color-mix(in oklab, var(--ink-900) 60%, transparent);
+  --accent:               var(--navy-50);
+  --accent-foreground:    var(--ink-900);
+  --destructive:          var(--accent-coral);
+  --border:               color-mix(in oklab, var(--navy-900) 10%, transparent);
+  --input:                color-mix(in oklab, var(--navy-900) 16%, transparent);
+  --ring:                 var(--accent-iris);
+  --chart-1:              var(--accent-iris);
+  --chart-2:              var(--accent-aurora);
+  --chart-3:              var(--accent-amber);
+  --chart-4:              var(--accent-coral);
+  --chart-5:              var(--navy-400);
+  --sidebar:              var(--ink-0);
+  --sidebar-foreground:   var(--ink-900);
+  --sidebar-primary:      var(--accent-iris);
+  --sidebar-primary-foreground: var(--ink-0);
+  --sidebar-accent:       var(--navy-50);
+  --sidebar-accent-foreground:  var(--ink-900);
+  --sidebar-border:       color-mix(in oklab, var(--navy-900) 8%, transparent);
+  --sidebar-ring:         var(--accent-iris);
+}
+
+/* ── Tailwind 토큰 매핑 ── */
+@theme inline {
+  /* 프로젝트 시맨틱 토큰 */
+  --color-bg-canvas: var(--bg-canvas);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-surface-2: var(--bg-surface-2);
+  --color-bg-sidebar: var(--bg-sidebar);
+  --color-bg-elevated: var(--bg-elevated);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+
+  --color-accent-iris: var(--accent-iris);
+  --color-accent-aurora: var(--accent-aurora);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-coral: var(--accent-coral);
+
+  --color-ring-focus: var(--ring-focus);
+  --color-state-success: var(--state-success);
+  --color-state-warn: var(--state-warn);
+  --color-state-error: var(--state-error);
+
+  /* shadcn 토큰 */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* 폰트 */
+  --font-sans: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+/* ── §5.3 기본 스타일 ── */
+body {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── §8 접근성: reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+  }
+}
+
+/* ── §8 접근성: focus-visible ── */
+:focus-visible {
+  outline: 2px solid var(--ring-focus);
+  outline-offset: 2px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+}

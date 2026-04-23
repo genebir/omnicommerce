@@ -1,0 +1,109 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { ExternalLink } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { ChannelBadge } from "@/components/patterns";
+import { cn } from "@/lib/utils";
+
+interface ChannelCardProps {
+  code: string;
+  name: string;
+  icon: LucideIcon;
+  connected: boolean;
+  productCount?: number;
+  orderCount?: number;
+  onConnect: () => void;
+  onDisconnect?: () => void;
+  disconnecting?: boolean;
+}
+
+export function ChannelCard({
+  code,
+  name,
+  icon: Icon,
+  connected,
+  productCount,
+  orderCount,
+  onConnect,
+  onDisconnect,
+  disconnecting,
+}: ChannelCardProps) {
+  const t = useTranslations("channels");
+
+  return (
+    <div className="flex flex-col rounded-2xl border border-border-subtle bg-bg-surface p-6 transition-colors hover:border-border-strong">
+      <div className="mb-4 flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-bg-surface-2">
+            <Icon className="size-5 text-text-secondary" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-text-primary">{name}</h3>
+            <ChannelBadge code={code} className="mt-1" />
+          </div>
+        </div>
+        <span
+          className={cn(
+            "rounded-full px-2.5 py-0.5 text-xs font-medium",
+            connected
+              ? "bg-state-success/15 text-state-success"
+              : "bg-bg-surface-2 text-text-tertiary",
+          )}
+        >
+          {connected ? t("connected") : t("notConnected")}
+        </span>
+      </div>
+
+      <p className="mb-4 flex-1 text-sm text-text-tertiary">{t(code)}</p>
+
+      {connected && (
+        <div className="mb-4 grid grid-cols-2 gap-3 rounded-xl bg-bg-canvas p-3">
+          <div>
+            <p className="text-xs text-text-tertiary">{t("productCount")}</p>
+            <p className="font-mono text-lg font-bold text-text-primary">
+              {productCount ?? 0}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-text-tertiary">{t("orderCount")}</p>
+            <p className="font-mono text-lg font-bold text-text-primary">
+              {orderCount ?? 0}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {connected ? (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onConnect}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border-subtle px-4 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
+          >
+            {t("manage")}
+            <ExternalLink className="size-3.5" />
+          </button>
+          {onDisconnect && (
+            <button
+              type="button"
+              onClick={onDisconnect}
+              disabled={disconnecting}
+              className="rounded-xl border border-state-error/30 px-3 py-2.5 text-sm font-medium text-state-error transition-colors hover:bg-state-error/10 disabled:opacity-50"
+            >
+              {t("disconnect")}
+            </button>
+          )}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onConnect}
+          className="flex items-center justify-center gap-2 rounded-xl bg-accent-iris px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80"
+        >
+          {t("connect")}
+        </button>
+      )}
+    </div>
+  );
+}

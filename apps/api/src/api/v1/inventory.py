@@ -1,0 +1,101 @@
+"""재고 API 엔드포인트."""
+
+import uuid
+
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+
+from src.api.v1.schemas import ApiResponse, PaginatedResponse, PaginationMeta
+from src.core.deps import SessionDep
+from src.infra.db.models.inventory import Inventory
+from src.services.inventory_service import InventoryService
+
+router = APIRouter(prefix="/inventory")
+
+
+class InventoryResponse(BaseModel):
+    id: uuid.UUID
+    product_id: uuid.UUID
+    sku: str
+    warehouse_id: str
+    total_quantity: int
+    allocated: int
+    available: int
+
+    model_config = {"from_attributes": True}
+
+
+class InventoryUpsert(BaseModel):
+    product_id: uuid.UUID
+    sku: str = Field(max_length=100)
+    warehouse_id: str = "default"
+    total_quantity: int = Field(ge=0)
+
+
+class AllocateRequest(BaseModel):
+    sku: str
+    quantity: int = Field(gt=0)
+    warehouse_id: str = "default"
+
+
+@router.get("", response_model=PaginatedResponse[InventoryResponse])
+async def list_inventory(
+    session: SessionDep,
+    limit: int = Query(50, ge=1, le=200),
+):
+    query = select(Inventory).where(Inventory.deleted_at.is_(None)).order_by(Inventory.sku).limit(limit)
+    result = await session.execute(query)
+    items = list(result.scalars().all())
+    return PaginatedResponse(
+        data=items,
+        meta=PaginationMeta(total=len(items)),
+    )
+
+
+@router.get("/{sku}", response_model=ApiResponse[InventoryResponse])
+async def get_inventory(sku: str, session: SessionDep, warehouse_id: str = "default"):
+    service = InventoryService(session)
+    inv = await service.get_by_sku(sku, warehouse_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="재고를 찾을 수 없습니다")
+    return ApiResponse(data=inv)
+
+
+@router.get("/product/{product_id}", response_model=ApiResponse[list[InventoryResponse]])
+async def list_product_inventory(product_id: uuid.UUID, session: SessionDep):
+    service = InventoryService(session)
+    items = await service.list_by_product(product_id)
+    return ApiResponse(data=items)
+
+
+@router.put("", response_model=ApiResponse[InventoryResponse])
+async def upsert_inventory(body: InventoryUpsert, session: SessionDep):
+    service = InventoryService(session)
+    inv = await service.create_or_update(
+        product_id=body.product_id,
+        sku=body.sku,
+        warehouse_id=body.warehouse_id,
+        total_quantity=body.total_quantity,
+    )
+    return ApiResponse(data=inv)
+
+
+@router.post("/allocate", response_model=ApiResponse[InventoryResponse])
+async def allocate_inventory(body: AllocateRequest, session: SessionDep):
+    service = InventoryService(session)
+    try:
+        inv = await service.allocate(body.sku, body.quantity, body.warehouse_id)
+        return ApiResponse(data=inv)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post("/deallocate", response_model=ApiResponse[InventoryResponse])
+async def deallocate_inventory(body: AllocateRequest, session: SessionDep):
+    service = InventoryService(session)
+    try:
+        inv = await service.deallocate(body.sku, body.quantity, body.warehouse_id)
+        return ApiResponse(data=inv)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e

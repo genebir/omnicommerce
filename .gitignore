@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.eggs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 환경 설정
+.env
+.env.local
+.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (프론트엔드)
+node_modules/
+.next/
+.turbo/
+out/
+
+# 테스트
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# 빌드 산출물
+*.log
+.dev.pids

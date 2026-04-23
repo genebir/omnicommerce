@@ -1,0 +1,216 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { CheckCircle, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useConnectChannel } from "@/lib/hooks";
+
+interface ConnectWizardProps {
+  channelCode: string;
+  channelName: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+type Step = "credentials" | "verify" | "done";
+
+const channelFields: Record<string, string[]> = {
+  cafe24: ["mallId", "clientId", "clientSecret"],
+  naver: ["clientId", "clientSecret"],
+  coupang: ["apiKeyLabel"],
+};
+
+export function ConnectWizard({
+  channelCode,
+  channelName,
+  open,
+  onOpenChange,
+}: ConnectWizardProps) {
+  const t = useTranslations("channels");
+  const tc = useTranslations("common");
+  const [step, setStep] = useState<Step>("credentials");
+  const connectChannel = useConnectChannel();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const fields = channelFields[channelCode] ?? ["apiKeyLabel"];
+
+  const stepNumber = step === "credentials" ? 1 : step === "verify" ? 2 : 3;
+
+  async function handleVerify() {
+    const formData = new FormData(formRef.current!);
+    const credentials: Record<string, string> = {};
+    formData.forEach((value, key) => {
+      if (typeof value === "string" && value) credentials[key] = value;
+    });
+
+    try {
+      await connectChannel.mutateAsync({
+        channel_type: channelCode,
+        shop_name: (credentials["mall_id"] || credentials["client_id"] || channelCode),
+        credentials,
+      });
+      setStep("done");
+      toast.success(t("step3DoneDesc", { channel: channelName }));
+    } catch {
+      toast.error(t("connectError"));
+    }
+  }
+
+  function handleClose() {
+    onOpenChange(false);
+    setTimeout(() => setStep("credentials"), 300);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="!max-w-md !bg-bg-surface !text-text-primary !ring-border-subtle">
+        <DialogHeader>
+          <div className="mb-1 text-xs font-medium text-text-tertiary">
+            {t("stepOf", { current: stepNumber, total: 3 })}
+          </div>
+          <DialogTitle className="!text-text-primary">
+            {t("connectTitle", { channel: channelName })}
+          </DialogTitle>
+          <DialogDescription className="!text-text-secondary">
+            {step === "credentials" && t("step1ApiKeyDesc", { channel: channelName })}
+            {step === "verify" && t("step2VerifyDesc", { channel: channelName })}
+            {step === "done" && t("step3DoneDesc", { channel: channelName })}
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* 진행 표시줄 */}
+        <div className="flex gap-1.5">
+          {[1, 2, 3].map((s) => (
+            <div
+              key={s}
+              className={`h-1 flex-1 rounded-full transition-colors ${
+                s <= stepNumber ? "bg-accent-iris" : "bg-bg-surface-2"
+              }`}
+            />
+          ))}
+        </div>
+
+        {step === "credentials" && (
+          <form ref={formRef} className="space-y-4">
+            {fields.includes("mallId") && (
+              <div>
+                <Label htmlFor="mall-id">{t("mallIdLabel")}</Label>
+                <Input
+                  id="mall-id"
+                  name="mall_id"
+                  placeholder={t("mallIdPlaceholder")}
+                  className="font-mono"
+                />
+              </div>
+            )}
+            {fields.includes("clientId") && (
+              <div>
+                <Label htmlFor="client-id">{t("clientIdLabel")}</Label>
+                <Input id="client-id" name="client_id" className="font-mono" />
+              </div>
+            )}
+            {fields.includes("clientSecret") && (
+              <div>
+                <Label htmlFor="client-secret">{t("clientSecretLabel")}</Label>
+                <Input id="client-secret" name="client_secret" type="password" className="font-mono" />
+              </div>
+            )}
+            {fields.includes("apiKeyLabel") && !fields.includes("clientId") && (
+              <div>
+                <Label htmlFor="api-key">{t("apiKeyLabel")}</Label>
+                <Input
+                  id="api-key"
+                  name="api_key"
+                  placeholder={t("apiKeyPlaceholder")}
+                  className="font-mono"
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
+              >
+                {tc("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep("verify")}
+                className="rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80"
+              >
+                {tc("next")}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {step === "verify" && (
+          <div className="space-y-4 py-4">
+            <div className="flex flex-col items-center gap-4">
+              {connectChannel.isPending ? (
+                <>
+                  <Loader2 className="size-12 animate-spin text-accent-iris" />
+                  <p className="text-sm text-text-secondary">{t("verifying")}</p>
+                </>
+              ) : (
+                <p className="text-sm text-text-secondary">
+                  {t("step2VerifyDesc", { channel: channelName })}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setStep("credentials")}
+                disabled={connectChannel.isPending}
+                className="rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2 disabled:opacity-50"
+              >
+                {tc("back")}
+              </button>
+              <button
+                type="button"
+                onClick={handleVerify}
+                disabled={connectChannel.isPending}
+                className="rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80 disabled:opacity-50"
+              >
+                {t("verify")}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === "done" && (
+          <div className="space-y-4 py-4">
+            <div className="flex flex-col items-center gap-4">
+              <CheckCircle className="size-12 text-state-success" />
+              <p className="text-sm text-text-secondary">
+                {t("step3DoneDesc", { channel: channelName })}
+              </p>
+            </div>
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80"
+              >
+                {t("complete")}
+              </button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

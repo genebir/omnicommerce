@@ -1,0 +1,185 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  Warehouse,
+  Link2,
+  Settings,
+  Plus,
+  RefreshCw,
+  PanelLeftClose,
+  PanelLeft,
+  X,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface NavItem {
+  href: string;
+  labelKey: string;
+  icon: LucideIcon;
+}
+
+const navItems: NavItem[] = [
+  { href: "/dashboard", labelKey: "dashboard", icon: LayoutDashboard },
+  { href: "/products", labelKey: "products", icon: Package },
+  { href: "/orders", labelKey: "orders", icon: ShoppingCart },
+  { href: "/inventory", labelKey: "inventory", icon: Warehouse },
+  { href: "/channels", labelKey: "channels", icon: Link2 },
+  { href: "/settings", labelKey: "settings", icon: Settings },
+];
+
+const quickActions: NavItem[] = [
+  { href: "/products/new", labelKey: "newProduct", icon: Plus },
+];
+
+interface SidebarProps {
+  collapsed: boolean;
+  mobileOpen: boolean;
+  onToggle: () => void;
+  onMobileClose: () => void;
+}
+
+export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: SidebarProps) {
+  const pathname = usePathname();
+  const t = useTranslations("nav");
+
+  return (
+    <>
+      {/* 모바일 오버레이 */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={onMobileClose}
+        />
+      )}
+
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-border-subtle bg-bg-sidebar transition-all duration-200 ease-out",
+          "max-lg:translate-x-[-100%] max-lg:w-60",
+          mobileOpen && "max-lg:translate-x-0",
+          collapsed ? "lg:w-16" : "lg:w-60",
+        )}
+      >
+        {/* 워크스페이스 스위처 */}
+        <div className="flex h-14 items-center justify-between border-b border-border-subtle px-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-iris font-mono text-xs font-bold text-text-primary">
+              O
+            </div>
+            {(!collapsed || mobileOpen) && (
+              <span className="truncate text-sm font-semibold text-text-primary">
+                OmniCommerce
+              </span>
+            )}
+          </div>
+          {mobileOpen && (
+            <button
+              type="button"
+              onClick={onMobileClose}
+              className="lg:hidden"
+              aria-label="close"
+            >
+              <X className="size-5 text-text-tertiary" />
+            </button>
+          )}
+        </div>
+
+        {/* Primary Nav */}
+        <nav className="flex-1 overflow-y-auto px-2 py-3">
+          <ul className="space-y-1">
+            {navItems.map((item) => {
+              const isActive =
+                pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const label = t(item.labelKey);
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    title={collapsed && !mobileOpen ? label : undefined}
+                    onClick={onMobileClose}
+                    className={cn(
+                      "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
+                      isActive
+                        ? "bg-bg-surface-2 text-text-primary"
+                        : "text-text-secondary hover:bg-bg-surface-2 hover:text-text-primary",
+                    )}
+                  >
+                    {isActive && (
+                      <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-accent-iris" />
+                    )}
+                    <item.icon className="size-5 shrink-0" />
+                    {(!collapsed || mobileOpen) && <span>{label}</span>}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* 빠른 작업 */}
+          <div className="mt-6 border-t border-border-subtle pt-4">
+            {(!collapsed || mobileOpen) && (
+              <p className="mb-2 px-3 text-xs font-medium text-text-tertiary">
+                {t("quickActions")}
+              </p>
+            )}
+            <ul className="space-y-1">
+              {quickActions.map((item) => {
+                const label = t(item.labelKey);
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      title={collapsed && !mobileOpen ? label : undefined}
+                      onClick={onMobileClose}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-surface-2 hover:text-text-primary"
+                    >
+                      <item.icon className="size-5 shrink-0" />
+                      {(!collapsed || mobileOpen) && <span>{label}</span>}
+                    </Link>
+                  </li>
+                );
+              })}
+              <li>
+                <button
+                  type="button"
+                  title={collapsed && !mobileOpen ? t("syncAll") : undefined}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-surface-2 hover:text-text-primary"
+                >
+                  <RefreshCw className="size-5 shrink-0" />
+                  {(!collapsed || mobileOpen) && <span>{t("syncAll")}</span>}
+                </button>
+              </li>
+            </ul>
+          </div>
+        </nav>
+
+        {/* 하단: 접기 토글 (데스크톱만) */}
+        <div className="hidden border-t border-border-subtle p-2 lg:block">
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
+            title={collapsed ? t("expandSidebar") : t("collapseSidebar")}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-text-tertiary transition-colors hover:bg-bg-surface-2 hover:text-text-primary"
+          >
+            {collapsed ? (
+              <PanelLeft className="size-5 shrink-0" />
+            ) : (
+              <>
+                <PanelLeftClose className="size-5 shrink-0" />
+                <span>{t("collapse")}</span>
+              </>
+            )}
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+}
