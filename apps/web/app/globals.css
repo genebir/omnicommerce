@@ -233,6 +233,12 @@ body {
   outline-offset: 2px;
 }
 
+/* ── 버튼 기본 커서 ── */
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  cursor: pointer;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
