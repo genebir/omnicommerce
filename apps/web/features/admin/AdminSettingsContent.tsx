@@ -102,7 +102,7 @@ export function AdminSettingsContent() {
         <select
           value={scope}
           onChange={(e) => { setScope(e.target.value); setCursor(undefined); setPrevCursors([]); }}
-          className="h-9 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface-2)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--ring-focus)] focus:outline-none"
+          className="h-9 cursor-pointer rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface-2)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--ring-focus)] focus:outline-none"
         >
           <option value="">{t("scopeAll")}</option>
           {SCOPES.map((s) => (

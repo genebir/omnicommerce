@@ -104,7 +104,7 @@ export function InventoryTable() {
             setEditItem(row.original);
             setEditQuantity(row.original.total);
           }}
-          className="rounded-lg p-1.5 text-text-tertiary transition-colors hover:bg-bg-surface-2 hover:text-text-primary"
+          className="cursor-pointer rounded-lg p-1.5 text-text-tertiary transition-colors hover:bg-bg-surface-2 hover:text-text-primary"
           aria-label={tc("edit")}
         >
           <Edit className="size-3.5" />
@@ -161,7 +161,7 @@ export function InventoryTable() {
                 <button
                   type="button"
                   onClick={() => setEditItem(null)}
-                  className="rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
+                  className="cursor-pointer rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
                 >
                   {tc("cancel")}
                 </button>
@@ -169,7 +169,7 @@ export function InventoryTable() {
                   type="button"
                   onClick={handleSaveQuantity}
                   disabled={updateInventory.isPending}
-                  className="rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80 disabled:opacity-50"
+                  className="cursor-pointer rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {updateInventory.isPending ? "..." : tc("save")}
                 </button>

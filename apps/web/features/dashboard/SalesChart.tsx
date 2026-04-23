@@ -41,7 +41,7 @@ export function SalesChart() {
         <select
           value={months}
           onChange={(e) => setMonths(Number(e.target.value))}
-          className="rounded-lg border border-border-subtle bg-bg-surface px-2 py-1 text-xs text-text-secondary focus:border-accent-iris focus:outline-none"
+          className="cursor-pointer rounded-lg border border-border-subtle bg-bg-surface px-2 py-1 text-xs text-text-secondary focus:border-accent-iris focus:outline-none"
         >
           {PERIOD_OPTIONS.map((m) => (
             <option key={m} value={m}>

@@ -158,14 +158,14 @@ export function ConnectWizard({
               <button
                 type="button"
                 onClick={handleClose}
-                className="rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
+                className="cursor-pointer rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
               >
                 {tc("cancel")}
               </button>
               <button
                 type="button"
                 onClick={() => setStep("verify")}
-                className="rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80"
+                className="cursor-pointer rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80"
               >
                 {tc("next")}
               </button>
@@ -192,7 +192,7 @@ export function ConnectWizard({
                 type="button"
                 onClick={() => setStep("credentials")}
                 disabled={connectChannel.isPending}
-                className="rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2 disabled:opacity-50"
+                className="cursor-pointer rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {tc("back")}
               </button>
@@ -200,7 +200,7 @@ export function ConnectWizard({
                 type="button"
                 onClick={handleVerify}
                 disabled={connectChannel.isPending}
-                className="rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80 disabled:opacity-50"
+                className="cursor-pointer rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {t("verify")}
               </button>
@@ -220,7 +220,7 @@ export function ConnectWizard({
               <button
                 type="button"
                 onClick={handleClose}
-                className="rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80"
+                className="cursor-pointer rounded-xl bg-accent-iris px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80"
               >
                 {t("complete")}
               </button>

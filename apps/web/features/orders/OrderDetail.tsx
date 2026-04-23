@@ -120,7 +120,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
             trigger={
               <button
                 type="button"
-                className="rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
+                className="cursor-pointer rounded-xl border border-border-subtle px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
               >
                 {t("changeStatus")}
               </button>

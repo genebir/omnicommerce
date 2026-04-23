@@ -145,7 +145,7 @@ export function CommandPalette() {
                       type="button"
                       onClick={item.action}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
+                        "flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
                         globalIdx === activeIndex
                           ? "bg-bg-surface-2 text-text-primary"
                           : "text-text-secondary hover:bg-bg-surface-2 hover:text-text-primary",

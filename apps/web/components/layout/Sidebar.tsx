@@ -85,7 +85,7 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Side
             <button
               type="button"
               onClick={onMobileClose}
-              className="lg:hidden"
+              className="cursor-pointer lg:hidden"
               aria-label="close"
             >
               <X className="size-5 text-text-tertiary" />
@@ -152,7 +152,7 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Side
                 <button
                   type="button"
                   title={collapsed && !mobileOpen ? t("syncAll") : undefined}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-surface-2 hover:text-text-primary"
+                  className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-surface-2 hover:text-text-primary"
                 >
                   <RefreshCw className="size-5 shrink-0" />
                   {(!collapsed || mobileOpen) && <span>{t("syncAll")}</span>}
@@ -169,7 +169,7 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Side
             onClick={onToggle}
             aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
             title={collapsed ? t("expandSidebar") : t("collapseSidebar")}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-text-tertiary transition-colors hover:bg-bg-surface-2 hover:text-text-primary"
+            className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm text-text-tertiary transition-colors hover:bg-bg-surface-2 hover:text-text-primary"
           >
             {collapsed ? (
               <PanelLeft className="size-5 shrink-0" />

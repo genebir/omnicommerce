@@ -79,7 +79,7 @@ export function ChannelCard({
           <button
             type="button"
             onClick={onConnect}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border-subtle px-4 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
+            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border-subtle px-4 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
           >
             {t("manage")}
             <ExternalLink className="size-3.5" />
@@ -89,7 +89,7 @@ export function ChannelCard({
               type="button"
               onClick={onDisconnect}
               disabled={disconnecting}
-              className="rounded-xl border border-state-error/30 px-3 py-2.5 text-sm font-medium text-state-error transition-colors hover:bg-state-error/10 disabled:opacity-50"
+              className="cursor-pointer rounded-xl border border-state-error/30 px-3 py-2.5 text-sm font-medium text-state-error transition-colors hover:bg-state-error/10 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t("disconnect")}
             </button>
@@ -99,7 +99,7 @@ export function ChannelCard({
         <button
           type="button"
           onClick={onConnect}
-          className="flex items-center justify-center gap-2 rounded-xl bg-accent-iris px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80"
+          className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent-iris px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80"
         >
           {t("connect")}
         </button>

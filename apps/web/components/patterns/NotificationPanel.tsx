@@ -38,7 +38,7 @@ export function NotificationPanel({
           type="button"
           aria-label={t("notifications")}
           title={t("notifications")}
-          className="relative rounded-lg p-2 text-text-secondary transition-colors hover:bg-bg-surface-2 hover:text-text-primary"
+          className="relative cursor-pointer rounded-lg p-2 text-text-secondary transition-colors hover:bg-bg-surface-2 hover:text-text-primary"
         >
           <Bell className="size-5" />
           {unreadCount > 0 && (
@@ -56,7 +56,7 @@ export function NotificationPanel({
             <button
               type="button"
               onClick={onMarkAllRead}
-              className="flex items-center gap-1 text-xs text-accent-iris hover:underline"
+              className="flex cursor-pointer items-center gap-1 text-xs text-accent-iris hover:underline"
             >
               <CheckCheck className="size-3" />
               {t("markAllRead")}

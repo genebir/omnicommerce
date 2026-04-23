@@ -73,14 +73,14 @@ export function OnboardingWizard({ open, onComplete }: OnboardingWizardProps) {
           <button
             type="button"
             onClick={onComplete}
-            className="text-sm text-text-tertiary hover:text-text-secondary"
+            className="cursor-pointer text-sm text-text-tertiary hover:text-text-secondary"
           >
             {t("skip")}
           </button>
           <button
             type="button"
             onClick={handleNext}
-            className="flex items-center gap-2 rounded-xl bg-accent-iris px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80"
+            className="flex cursor-pointer items-center gap-2 rounded-xl bg-accent-iris px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-iris/80"
           >
             {step === steps.length - 1 ? t("start") : tc("next")}
             <ArrowRight className="size-4" />

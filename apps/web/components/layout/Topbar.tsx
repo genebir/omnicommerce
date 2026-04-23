@@ -34,7 +34,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
       <button
         type="button"
         onClick={onMobileMenuOpen}
-        className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-bg-surface-2 lg:hidden"
+        className="cursor-pointer rounded-lg p-2 text-text-secondary transition-colors hover:bg-bg-surface-2 lg:hidden"
         aria-label="메뉴"
       >
         <Menu className="size-5" />
@@ -44,7 +44,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
       <button
         type="button"
         onClick={() => document.dispatchEvent(new CustomEvent("open-command-palette"))}
-        className="flex flex-1 items-center gap-2 rounded-lg bg-bg-surface px-3 py-1.5 text-sm text-text-tertiary transition-colors hover:bg-bg-surface-2"
+        className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg bg-bg-surface px-3 py-1.5 text-sm text-text-tertiary transition-colors hover:bg-bg-surface-2"
       >
         <Search className="size-4" />
         <span className="hidden sm:inline">{t("searchPlaceholder")}</span>
@@ -65,7 +65,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
         onClick={toggleTheme}
         aria-label={theme === "dark" ? t("lightMode") : t("darkMode")}
         title={theme === "dark" ? t("lightMode") : t("darkMode")}
-        className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-bg-surface-2 hover:text-text-primary"
+        className="cursor-pointer rounded-lg p-2 text-text-secondary transition-colors hover:bg-bg-surface-2 hover:text-text-primary"
       >
         {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
       </button>
@@ -97,7 +97,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
           <button
             type="button"
             aria-label={t("profile")}
-            className="flex size-8 items-center justify-center rounded-full bg-accent-iris/20 text-xs font-bold text-accent-iris transition-colors hover:bg-accent-iris/30"
+            className="flex size-8 cursor-pointer items-center justify-center rounded-full bg-accent-iris/20 text-xs font-bold text-accent-iris transition-colors hover:bg-accent-iris/30"
           >
             {user?.name?.[0]?.toUpperCase() ?? <User className="size-4" />}
           </button>
