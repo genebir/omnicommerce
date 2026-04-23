@@ -15,6 +15,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   X,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ const navItems: NavItem[] = [
   { href: "/inventory", labelKey: "inventory", icon: Warehouse },
   { href: "/channels", labelKey: "channels", icon: Link2 },
   { href: "/settings", labelKey: "settings", icon: Settings },
+  { href: "/admin/settings", labelKey: "adminSettings", icon: SlidersHorizontal },
 ];
 
 const quickActions: NavItem[] = [

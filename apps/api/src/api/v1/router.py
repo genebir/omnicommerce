@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from src.api.v1 import auth, channels, config, dashboard, health, inventory, jobs, orders, products
+from src.api.v1 import admin, auth, channels, config, dashboard, health, inventory, jobs, orders, products
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(health.router, tags=["헬스체크"])
@@ -14,3 +14,4 @@ router.include_router(inventory.router, tags=["재고"])
 router.include_router(channels.router, tags=["채널"])
 router.include_router(jobs.router)
 router.include_router(dashboard.router, tags=["대시보드"])
+router.include_router(admin.router, tags=["관리자"])
