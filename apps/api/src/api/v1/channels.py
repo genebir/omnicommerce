@@ -1,5 +1,6 @@
 """채널 API 엔드포인트."""
 
+import json
 import uuid
 
 from fastapi import APIRouter, HTTPException
@@ -11,6 +12,7 @@ from src.core.deps import CurrentUserDep, SessionDep
 from src.infra.db.models.channel import Channel, ChannelType
 from src.infra.db.models.channel_listing import ChannelListing
 from src.infra.db.models.order import Order
+from src.utils.crypto import encrypt
 
 router = APIRouter(prefix="/channels")
 
@@ -54,49 +56,51 @@ async def list_channel_types(session: SessionDep):
 
 @router.get("", response_model=ApiResponse[list[ChannelResponse]])
 async def list_channels(session: SessionDep, current_user: CurrentUserDep):
-    """사용자가 연결한 채널 목록."""
-    result = await session.execute(
-        select(Channel).where(
+    """사용자가 연결한 채널 목록 — 상품/주문 수를 단일 쿼리로 집계."""
+    product_count_sq = (
+        select(func.count())
+        .select_from(ChannelListing)
+        .where(
+            ChannelListing.channel_type == Channel.channel_type,
+            ChannelListing.deleted_at.is_(None),
+        )
+        .correlate(Channel)
+        .scalar_subquery()
+    )
+    order_count_sq = (
+        select(func.count())
+        .select_from(Order)
+        .where(
+            Order.channel_type == Channel.channel_type,
+            Order.user_id == current_user.id,
+            Order.deleted_at.is_(None),
+        )
+        .correlate(Channel)
+        .scalar_subquery()
+    )
+    rows = await session.execute(
+        select(
+            Channel,
+            product_count_sq.label("product_count"),
+            order_count_sq.label("order_count"),
+        ).where(
             Channel.user_id == current_user.id,
             Channel.deleted_at.is_(None),
         )
     )
-    channels = list(result.scalars().all())
-
-    response = []
-    for ch in channels:
-        product_count_result = await session.execute(
-            select(func.count()).select_from(
-                select(ChannelListing)
-                .where(
-                    ChannelListing.channel_type == ch.channel_type,
-                    ChannelListing.deleted_at.is_(None),
-                )
-                .subquery()
-            )
-        )
-        order_count_result = await session.execute(
-            select(func.count()).select_from(
-                select(Order)
-                .where(
-                    Order.channel_type == ch.channel_type,
-                    Order.user_id == current_user.id,
-                    Order.deleted_at.is_(None),
-                )
-                .subquery()
-            )
-        )
-        response.append(
+    return ApiResponse(
+        data=[
             ChannelResponse(
                 id=ch.id,
                 channel_type=ch.channel_type,
                 shop_name=ch.shop_name,
                 is_active=ch.is_active,
-                product_count=product_count_result.scalar_one(),
-                order_count=order_count_result.scalar_one(),
+                product_count=pc,
+                order_count=oc,
             )
-        )
-    return ApiResponse(data=response)
+            for ch, pc, oc in rows.all()
+        ]
+    )
 
 
 @router.post("", response_model=ApiResponse[ChannelResponse], status_code=201)
@@ -112,13 +116,11 @@ async def connect_channel(
     if not ct.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="지원하지 않는 채널 타입입니다")
 
-    import json
-
     channel = Channel(
         user_id=current_user.id,
         channel_type=body.channel_type,
         shop_name=body.shop_name,
-        credentials_encrypted=json.dumps(body.credentials),
+        credentials_encrypted=encrypt(json.dumps(body.credentials)),
         is_active=True,
     )
     session.add(channel)

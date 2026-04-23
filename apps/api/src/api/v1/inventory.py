@@ -4,11 +4,12 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from src.api.v1.schemas import ApiResponse, PaginatedResponse, PaginationMeta
-from src.core.deps import SessionDep
+from src.core.deps import CurrentUserDep, SessionDep
 from src.infra.db.models.inventory import Inventory
+from src.infra.db.models.product import Product
 from src.services.inventory_service import InventoryService
 
 router = APIRouter(prefix="/inventory")
@@ -39,17 +40,30 @@ class AllocateRequest(BaseModel):
     warehouse_id: str = "default"
 
 
+def _user_inventory_where(current_user_id: uuid.UUID):
+    """재고를 소유자 기준으로 필터링하는 공통 조건."""
+    return [
+        Inventory.deleted_at.is_(None),
+        Product.user_id == current_user_id,
+        Product.deleted_at.is_(None),
+    ]
+
+
 @router.get("", response_model=PaginatedResponse[InventoryResponse])
 async def list_inventory(
     session: SessionDep,
+    current_user: CurrentUserDep,
     limit: int = Query(50, ge=1, le=200),
 ):
-    query = select(Inventory).where(Inventory.deleted_at.is_(None)).order_by(Inventory.sku).limit(limit)
-    result = await session.execute(query)
+    conditions = _user_inventory_where(current_user.id)
+    base = select(Inventory).join(Product, Inventory.product_id == Product.id).where(*conditions)
+    result = await session.execute(base.order_by(Inventory.sku).limit(limit))
     items = list(result.scalars().all())
+
+    total = (await session.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
     return PaginatedResponse(
         data=items,
-        meta=PaginationMeta(total=len(items)),
+        meta=PaginationMeta(total=total),
     )
 
 

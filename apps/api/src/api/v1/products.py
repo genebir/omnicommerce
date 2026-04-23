@@ -1,6 +1,7 @@
 """상품 API 엔드포인트."""
 
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -51,8 +52,8 @@ class ProductResponse(BaseModel):
     cost_price: float | None
     category_path: str | None
     status: str
-    created_at: str | None = None
-    updated_at: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -64,12 +65,13 @@ class ProductDetailResponse(ProductResponse):
 @router.get("", response_model=PaginatedResponse[ProductResponse])
 async def list_products(
     session: SessionDep,
+    current_user: CurrentUserDep,
     cursor: str | None = Query(None, description="이전 페이지 마지막 항목 ID"),
     limit: int = Query(20, ge=1, le=100),
     q: str | None = Query(None, description="상품명/SKU 검색"),
     status: str | None = Query(None, description="상태 필터"),
 ):
-    base = select(Product).where(Product.deleted_at.is_(None))
+    base = select(Product).where(Product.deleted_at.is_(None), Product.user_id == current_user.id)
     if q:
         base = base.where(Product.name.ilike(f"%{q}%") | Product.sku.ilike(f"%{q}%"))
     if status:
@@ -109,11 +111,11 @@ async def create_product(body: ProductCreate, session: SessionDep, current_user:
 
 
 @router.get("/{product_id}", response_model=ApiResponse[ProductDetailResponse])
-async def get_product(product_id: uuid.UUID, session: SessionDep):
+async def get_product(product_id: uuid.UUID, session: SessionDep, current_user: CurrentUserDep):
     result = await session.execute(
         select(Product)
         .options(selectinload(Product.images))
-        .where(Product.id == product_id, Product.deleted_at.is_(None))
+        .where(Product.id == product_id, Product.deleted_at.is_(None), Product.user_id == current_user.id)
     )
     product = result.scalar_one_or_none()
     if not product:
@@ -122,23 +124,25 @@ async def get_product(product_id: uuid.UUID, session: SessionDep):
 
 
 @router.patch("/{product_id}", response_model=ApiResponse[ProductResponse])
-async def update_product(product_id: uuid.UUID, body: ProductUpdate, session: SessionDep):
+async def update_product(product_id: uuid.UUID, body: ProductUpdate, session: SessionDep, current_user: CurrentUserDep):
     service = ProductService(session)
     updates = body.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=400, detail="수정할 필드가 없습니다")
-    product = await service.update(product_id, **updates)
-    if not product:
+    existing = await service.get_by_id(product_id)
+    if not existing or existing.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다")
+    product = await service.update(product_id, **updates)
     return ApiResponse(data=product)
 
 
 @router.delete("/{product_id}", status_code=204)
-async def delete_product(product_id: uuid.UUID, session: SessionDep):
+async def delete_product(product_id: uuid.UUID, session: SessionDep, current_user: CurrentUserDep):
     service = ProductService(session)
-    deleted = await service.soft_delete(product_id)
-    if not deleted:
+    existing = await service.get_by_id(product_id)
+    if not existing or existing.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다")
+    await service.soft_delete(product_id)
 
 
 class ImageCreate(BaseModel):

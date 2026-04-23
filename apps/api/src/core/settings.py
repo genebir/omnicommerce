@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     WORKERS: int = 1
     LOG_LEVEL: str = "DEBUG"
 
+    # 프론트엔드
+    FRONTEND_URL: str = "http://localhost:3000"
+
     # 관찰성
     SENTRY_DSN: str = ""
     OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
