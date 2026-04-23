@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { CheckCircle, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -39,24 +39,21 @@ export function ConnectWizard({
   const t = useTranslations("channels");
   const tc = useTranslations("common");
   const [step, setStep] = useState<Step>("credentials");
+  const [credentials, setCredentials] = useState<Record<string, string>>({});
   const connectChannel = useConnectChannel();
-  const formRef = useRef<HTMLFormElement>(null);
 
   const fields = channelFields[channelCode] ?? ["apiKeyLabel"];
-
   const stepNumber = step === "credentials" ? 1 : step === "verify" ? 2 : 3;
 
-  async function handleVerify() {
-    const formData = new FormData(formRef.current!);
-    const credentials: Record<string, string> = {};
-    formData.forEach((value, key) => {
-      if (typeof value === "string" && value) credentials[key] = value;
-    });
+  function handleFieldChange(name: string, value: string) {
+    setCredentials((prev) => ({ ...prev, [name]: value }));
+  }
 
+  async function handleVerify() {
     try {
       await connectChannel.mutateAsync({
         channel_type: channelCode,
-        shop_name: (credentials["mall_id"] || credentials["client_id"] || channelCode),
+        shop_name: credentials["mall_id"] || credentials["client_id"] || channelCode,
         credentials,
       });
       setStep("done");
@@ -68,7 +65,10 @@ export function ConnectWizard({
 
   function handleClose() {
     onOpenChange(false);
-    setTimeout(() => setStep("credentials"), 300);
+    setTimeout(() => {
+      setStep("credentials");
+      setCredentials({});
+    }, 300);
   }
 
   return (
@@ -101,7 +101,7 @@ export function ConnectWizard({
         </div>
 
         {step === "credentials" && (
-          <form ref={formRef} className="space-y-4">
+          <div className="space-y-4">
             {fields.includes("mallId") && (
               <div>
                 <Label htmlFor="mall-id">{t("mallIdLabel")}</Label>
@@ -110,19 +110,34 @@ export function ConnectWizard({
                   name="mall_id"
                   placeholder={t("mallIdPlaceholder")}
                   className="font-mono"
+                  value={credentials["mall_id"] ?? ""}
+                  onChange={(e) => handleFieldChange("mall_id", e.target.value)}
                 />
               </div>
             )}
             {fields.includes("clientId") && (
               <div>
                 <Label htmlFor="client-id">{t("clientIdLabel")}</Label>
-                <Input id="client-id" name="client_id" className="font-mono" />
+                <Input
+                  id="client-id"
+                  name="client_id"
+                  className="font-mono"
+                  value={credentials["client_id"] ?? ""}
+                  onChange={(e) => handleFieldChange("client_id", e.target.value)}
+                />
               </div>
             )}
             {fields.includes("clientSecret") && (
               <div>
                 <Label htmlFor="client-secret">{t("clientSecretLabel")}</Label>
-                <Input id="client-secret" name="client_secret" type="password" className="font-mono" />
+                <Input
+                  id="client-secret"
+                  name="client_secret"
+                  type="password"
+                  className="font-mono"
+                  value={credentials["client_secret"] ?? ""}
+                  onChange={(e) => handleFieldChange("client_secret", e.target.value)}
+                />
               </div>
             )}
             {fields.includes("apiKeyLabel") && !fields.includes("clientId") && (
@@ -133,6 +148,8 @@ export function ConnectWizard({
                   name="api_key"
                   placeholder={t("apiKeyPlaceholder")}
                   className="font-mono"
+                  value={credentials["api_key"] ?? ""}
+                  onChange={(e) => handleFieldChange("api_key", e.target.value)}
                 />
               </div>
             )}
@@ -153,7 +170,7 @@ export function ConnectWizard({
                 {tc("next")}
               </button>
             </div>
-          </form>
+          </div>
         )}
 
         {step === "verify" && (

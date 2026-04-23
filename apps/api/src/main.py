@@ -102,6 +102,13 @@ async def validation_handler(request: Request, exc: ValidationError):
 
 @app.exception_handler(RequestValidationError)
 async def request_validation_handler(request: Request, exc: RequestValidationError):
+    import structlog as _sl
+
+    _sl.stdlib.get_logger().warning(
+        "요청 검증 실패",
+        path=str(request.url.path),
+        errors=exc.errors(),
+    )
     return _problem(status=422, title="요청 유효성 검사 실패", detail=str(exc), request=request)
 
 
