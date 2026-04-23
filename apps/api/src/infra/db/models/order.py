@@ -14,9 +14,9 @@ class Order(BaseModel):
     __tablename__ = "orders"
 
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
-    channel_type: Mapped[str] = mapped_column(String(50), ForeignKey("channel_types.code"), nullable=False)
+    channel_type: Mapped[str] = mapped_column(String(50), ForeignKey("channel_types.code"), nullable=False, index=True)
     external_order_id: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
-    status: Mapped[str] = mapped_column(String(30), nullable=False, default="PAID")
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="PAID", index=True)
     buyer_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     buyer_phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     buyer_email: Mapped[str | None] = mapped_column(String(255), nullable=True)

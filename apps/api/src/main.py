@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.api.v1.router import router as v1_router
@@ -41,6 +42,14 @@ app = FastAPI(
     redoc_url="/redoc" if settings.is_dev else None,
 )
 
+_allowed_origins = ["*"] if settings.is_dev else [settings.FRONTEND_URL]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.add_middleware(RequestContextMiddleware)
 app.include_router(v1_router)
 app.include_router(webhooks_router)

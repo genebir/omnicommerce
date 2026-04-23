@@ -55,8 +55,20 @@ class InventoryService:
         await self._session.refresh(inventory)
         return inventory
 
+    async def _get_by_sku_for_update(self, sku: str, warehouse_id: str) -> Inventory | None:
+        """비관적 잠금(SELECT FOR UPDATE)으로 재고 행을 가져온다 — 동시 할당 레이스 컨디션 방지."""
+        result = await self._session.execute(
+            select(Inventory)
+            .where(
+                Inventory.sku == sku,
+                Inventory.warehouse_id == warehouse_id,
+            )
+            .with_for_update()
+        )
+        return result.scalar_one_or_none()
+
     async def allocate(self, sku: str, qty: int, warehouse_id: str = "default") -> Inventory:
-        inv = await self.get_by_sku(sku, warehouse_id)
+        inv = await self._get_by_sku_for_update(sku, warehouse_id)
         if not inv:
             raise ValueError(f"SKU '{sku}'의 재고를 찾을 수 없습니다")
         if qty > inv.available:
@@ -68,7 +80,7 @@ class InventoryService:
         return inv
 
     async def deallocate(self, sku: str, qty: int, warehouse_id: str = "default") -> Inventory:
-        inv = await self.get_by_sku(sku, warehouse_id)
+        inv = await self._get_by_sku_for_update(sku, warehouse_id)
         if not inv:
             raise ValueError(f"SKU '{sku}'의 재고를 찾을 수 없습니다")
         if qty > inv.allocated:

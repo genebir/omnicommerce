@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -9,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from src.api.v1.schemas import ApiResponse, PaginatedResponse, PaginationMeta
-from src.core.deps import SessionDep
+from src.core.deps import CurrentUserDep, SessionDep
 from src.infra.db.models.order import Order
 from src.services.order_service import OrderService
 
@@ -60,18 +61,19 @@ class OrderDetailResponse(BaseModel):
 
 
 class StatusTransitionRequest(BaseModel):
-    status: str
+    status: Literal["PREPARING", "SHIPPED", "DELIVERED", "CANCELED", "REFUNDED"]
 
 
 @router.get("", response_model=PaginatedResponse[OrderResponse])
 async def list_orders(
     session: SessionDep,
-    cursor: str | None = Query(None, description="이전 페이지 마지막 항�� ID"),
+    current_user: CurrentUserDep,
+    cursor: str | None = Query(None, description="이전 페이지 마지막 항목 ID"),
     limit: int = Query(20, ge=1, le=100),
-    q: str | None = Query(None, description="주문번호/주문자 검���"),
+    q: str | None = Query(None, description="주문번호/주문자 검색"),
     status: str | None = Query(None, description="상태 필터"),
 ):
-    base = select(Order).where(Order.deleted_at.is_(None))
+    base = select(Order).where(Order.deleted_at.is_(None), Order.user_id == current_user.id)
     if q:
         base = base.where(Order.external_order_id.ilike(f"%{q}%") | Order.buyer_name.ilike(f"%{q}%"))
     if status:
@@ -96,9 +98,11 @@ async def list_orders(
 
 
 @router.get("/{order_id}", response_model=ApiResponse[OrderDetailResponse])
-async def get_order(order_id: uuid.UUID, session: SessionDep):
+async def get_order(order_id: uuid.UUID, session: SessionDep, current_user: CurrentUserDep):
     result = await session.execute(
-        select(Order).options(selectinload(Order.items)).where(Order.id == order_id, Order.deleted_at.is_(None))
+        select(Order)
+        .options(selectinload(Order.items))
+        .where(Order.id == order_id, Order.deleted_at.is_(None), Order.user_id == current_user.id)
     )
     order = result.scalar_one_or_none()
     if not order:
@@ -107,8 +111,13 @@ async def get_order(order_id: uuid.UUID, session: SessionDep):
 
 
 @router.patch("/{order_id}/status", response_model=ApiResponse[OrderResponse])
-async def transition_order_status(order_id: uuid.UUID, body: StatusTransitionRequest, session: SessionDep):
+async def transition_order_status(
+    order_id: uuid.UUID, body: StatusTransitionRequest, session: SessionDep, current_user: CurrentUserDep
+):
     service = OrderService(session)
+    existing = await service.get_by_id(order_id)
+    if not existing or existing.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다")
     try:
         order = await service.transition_status(order_id, body.status)
         return ApiResponse(data=order)

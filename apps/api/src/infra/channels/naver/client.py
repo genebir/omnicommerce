@@ -35,10 +35,11 @@ class NaverClient:
         await logger.ainfo("naver 토큰 발급 시도")
 
         import hashlib
+        import hmac
 
         timestamp = str(int(time.time() * 1000))
-        signature_base = f"{self._client_id}_{timestamp}"
-        signature = hashlib.sha256(f"{signature_base}{self._client_secret}".encode()).hexdigest()
+        message = f"{self._client_id}_{timestamp}".encode()
+        signature = hmac.new(self._client_secret.encode(), message, hashlib.sha256).hexdigest()
 
         response = await self._http.post(
             _NAVER_TOKEN_URL,
