@@ -15,9 +15,16 @@ from src.infra.channels.registry import register
 
 @register("cafe24")
 class Cafe24Gateway:
-    def __init__(self, mall_id: str, access_token: str, refresh_token: str | None = None) -> None:
+    def __init__(
+        self,
+        mall_id: str,
+        access_token: str,
+        refresh_token: str | None = None,
+        client_id: str = "",
+        client_secret: str = "",
+    ) -> None:
         self._mall_id = mall_id
-        self._client = Cafe24Client(mall_id, access_token, refresh_token)
+        self._client = Cafe24Client(mall_id, access_token, refresh_token, client_id, client_secret)
 
     async def close(self) -> None:
         await self._client.close()

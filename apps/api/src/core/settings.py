@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     SESSION_SECRET: str
     FERNET_KEY: str
     CAFE24_WEBHOOK_SECRET: str = ""
+    CAFE24_CLIENT_ID: str = ""
+    CAFE24_CLIENT_SECRET: str = ""
+    CAFE24_REDIRECT_URI: str = "http://localhost:8000/api/v1/channels/cafe24/oauth/callback"
 
     # 부팅 런타임
     ENV: Literal["dev", "stage", "prod"] = "dev"

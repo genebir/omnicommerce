@@ -54,6 +54,13 @@ export function useConnectChannel() {
   });
 }
 
+export function useCafe24OAuthUrl() {
+  return useMutation({
+    mutationFn: (mallId: string) =>
+      api.get<{ url: string }>(`/channels/cafe24/oauth/url?mall_id=${encodeURIComponent(mallId)}`),
+  });
+}
+
 export function useDisconnectChannel() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -1,15 +1,21 @@
 """채널 API 엔드포인트."""
 
+import base64
+import hashlib
+import hmac as hmac_module
 import json
 import uuid
 
+import httpx
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from src.api.v1.schemas import ApiResponse
 from src.core.deps import CurrentUserDep, SessionDep
+from src.core.settings import settings
 from src.infra.db.models.channel import Channel, ChannelType
 from src.infra.db.models.channel_listing import ChannelListing
 from src.infra.db.models.order import Order
@@ -19,6 +25,27 @@ from src.utils.crypto import encrypt
 logger = structlog.stdlib.get_logger()
 
 router = APIRouter(prefix="/channels")
+
+_CAFE24_SCOPES = "mall.read_product,mall.write_product,mall.read_order,mall.write_order"
+
+
+def _make_oauth_state(user_id: uuid.UUID, mall_id: str) -> str:
+    payload = json.dumps({"user_id": str(user_id), "mall_id": mall_id})
+    b64 = base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")
+    sig = hmac_module.new(settings.JWT_SIGNING_SECRET.encode(), b64.encode(), hashlib.sha256).hexdigest()[:16]
+    return f"{b64}.{sig}"
+
+
+def _parse_oauth_state(state: str) -> dict:
+    try:
+        b64, sig = state.rsplit(".", 1)
+        expected = hmac_module.new(settings.JWT_SIGNING_SECRET.encode(), b64.encode(), hashlib.sha256).hexdigest()[:16]
+        if not hmac_module.compare_digest(sig, expected):
+            raise ValueError("서명 불일치")
+        padding = "=" * ((4 - len(b64) % 4) % 4)
+        return json.loads(base64.urlsafe_b64decode(b64 + padding))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="잘못된 state 파라미터") from exc
 
 
 class ChannelTypeResponse(BaseModel):
@@ -49,6 +76,98 @@ class ChannelConnectRequest(BaseModel):
 
 class ChannelDisconnectRequest(BaseModel):
     pass
+
+
+@router.get("/cafe24/oauth/url", response_model=ApiResponse[dict])
+async def cafe24_oauth_url(
+    mall_id: str = Query(..., min_length=1, max_length=100),
+    current_user: CurrentUserDep = None,
+):
+    """Cafe24 OAuth 인가 URL을 반환한다. 프론트에서 팝업으로 열어 사용."""
+    if not settings.CAFE24_CLIENT_ID:
+        raise HTTPException(status_code=400, detail="CAFE24_CLIENT_ID가 설정되지 않았습니다")
+
+    state = _make_oauth_state(current_user.id, mall_id)
+    from urllib.parse import quote
+
+    url = (
+        f"https://{mall_id}.cafe24api.com/api/v2/oauth/authorize"
+        f"?response_type=code"
+        f"&client_id={settings.CAFE24_CLIENT_ID}"
+        f"&state={quote(state, safe='')}"
+        f"&redirect_uri={quote(settings.CAFE24_REDIRECT_URI, safe='')}"
+        f"&scope={quote(_CAFE24_SCOPES, safe='')}"
+    )
+    return ApiResponse(data={"url": url})
+
+
+@router.get("/cafe24/oauth/callback")
+async def cafe24_oauth_callback(
+    code: str = Query(...),
+    state: str = Query(...),
+    session: SessionDep = None,
+):
+    """Cafe24 OAuth 콜백 — 인가코드를 토큰으로 교환 후 채널 저장."""
+    error_url = f"{settings.FRONTEND_URL}/channels?cafe24=error"
+
+    try:
+        state_data = _parse_oauth_state(state)
+        user_id = uuid.UUID(state_data["user_id"])
+        mall_id: str = state_data["mall_id"]
+    except Exception:
+        return RedirectResponse(error_url)
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.post(
+            f"https://{mall_id}.cafe24api.com/api/v2/oauth/token",
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": settings.CAFE24_REDIRECT_URI,
+            },
+            auth=(settings.CAFE24_CLIENT_ID, settings.CAFE24_CLIENT_SECRET),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+
+    if resp.status_code != 200:
+        await logger.awarning("cafe24 토큰 교환 실패", status=resp.status_code, body=resp.text[:200])
+        return RedirectResponse(error_url)
+
+    token_data = resp.json()
+    credentials = {
+        "mall_id": mall_id,
+        "access_token": token_data["access_token"],
+        "refresh_token": token_data.get("refresh_token", ""),
+        "client_id": settings.CAFE24_CLIENT_ID,
+        "client_secret": settings.CAFE24_CLIENT_SECRET,
+    }
+
+    existing = await session.execute(
+        select(Channel).where(
+            Channel.user_id == user_id,
+            Channel.channel_type == "cafe24",
+            Channel.shop_name == mall_id,
+            Channel.deleted_at.is_(None),
+        )
+    )
+    channel = existing.scalar_one_or_none()
+    if channel:
+        channel.credentials_encrypted = encrypt(json.dumps(credentials))
+        channel.is_active = True
+    else:
+        channel = Channel(
+            user_id=user_id,
+            channel_type="cafe24",
+            shop_name=mall_id,
+            credentials_encrypted=encrypt(json.dumps(credentials)),
+            is_active=True,
+        )
+        session.add(channel)
+
+    await session.commit()
+    await logger.ainfo("cafe24 채널 연결 완료", mall_id=mall_id, user_id=str(user_id))
+
+    return RedirectResponse(f"{settings.FRONTEND_URL}/channels?cafe24=connected")
 
 
 @router.get("/types", response_model=ApiResponse[list[ChannelTypeResponse]])
