@@ -120,6 +120,48 @@ export function useUpdateProduct(id: string) {
   });
 }
 
+// ----- 가격 일괄 수정 -----
+
+export interface BulkPriceField {
+  mode: "absolute" | "inc_amount" | "inc_percent";
+  value: number;
+  round_to?: number;
+}
+
+export interface BulkPriceEditRequest {
+  product_ids: string[];
+  price?: BulkPriceField;
+  cost_price?: BulkPriceField;
+  sync_channels?: boolean;
+  channel_types?: string[];
+}
+
+export interface BulkPriceProductResult {
+  product_id: string;
+  old_price: number;
+  new_price: number;
+  old_cost_price: number | null;
+  new_cost_price: number | null;
+  channel_results: ChannelDeleteResult[];
+}
+
+export interface BulkPriceEditResult {
+  updated_count: number;
+  sync_attempted: boolean;
+  items: BulkPriceProductResult[];
+}
+
+export function useBulkEditPrice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: BulkPriceEditRequest) =>
+      api.patch<BulkPriceEditResult>("/products/bulk/price", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
   return useMutation({

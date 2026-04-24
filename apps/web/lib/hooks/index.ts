@@ -6,10 +6,15 @@ export {
   useDeleteProduct,
   useAddProductImage,
   useDeleteProductImage,
+  useBulkEditPrice,
   type ChannelListingInfo,
   type ChannelDeleteResult,
   type DeleteProductResult,
   type Product,
+  type BulkPriceField,
+  type BulkPriceEditRequest,
+  type BulkPriceProductResult,
+  type BulkPriceEditResult,
 } from "./use-products";
 export { useOrders, useOrder, useUpdateOrderStatus } from "./use-orders";
 export { useInventory, useUpdateInventory } from "./use-inventory";

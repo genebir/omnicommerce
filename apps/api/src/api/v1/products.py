@@ -363,6 +363,198 @@ async def _publish_to_channels(session, product: Product, user_id: uuid.UUID, ch
     await session.commit()
 
 
+# ===== 가격 일괄 수정 =====
+
+
+class BulkPriceField(BaseModel):
+    """가격 또는 단가, 두 개 중 하나 또는 둘 다 변경 가능."""
+
+    mode: Annotated[str, Field(pattern="^(absolute|inc_amount|inc_percent)$")]
+    """- absolute: value를 그대로 적용
+    - inc_amount: 현재 값에 value 더함 (음수=인하)
+    - inc_percent: 현재 값의 value% 변경 (음수=인하)
+    """
+
+    value: float
+    round_to: int = Field(default=10, ge=1, description="원 단위 반올림 자릿수 (1·10·100·1000)")
+
+
+class BulkPriceEditRequest(BaseModel):
+    product_ids: list[uuid.UUID] = Field(min_length=1, max_length=500)
+    price: BulkPriceField | None = None
+    cost_price: BulkPriceField | None = None
+    sync_channels: bool = True
+    """True면 가격 변경을 연결된 채널에 동기화 시도. False면 내부 DB만."""
+
+    channel_types: list[str] = Field(
+        default_factory=list,
+        description="동기화할 채널 코드 목록 (빈 배열이면 연결된 모든 채널)",
+    )
+
+
+def _apply_change(current: float | None, change: BulkPriceField) -> float:
+    base = float(current or 0)
+    if change.mode == "absolute":
+        new = float(change.value)
+    elif change.mode == "inc_amount":
+        new = base + float(change.value)
+    else:  # inc_percent
+        new = base * (1.0 + float(change.value) / 100.0)
+
+    new = max(0.0, new)
+    if change.round_to > 1:
+        new = round(new / change.round_to) * change.round_to
+    return new
+
+
+class BulkPriceProductResult(BaseModel):
+    product_id: uuid.UUID
+    old_price: float
+    new_price: float
+    old_cost_price: float | None
+    new_cost_price: float | None
+    channel_results: list[ChannelDeleteResult] = []  # success/error 구조 재사용
+
+
+class BulkPriceEditResult(BaseModel):
+    updated_count: int
+    sync_attempted: bool
+    items: list[BulkPriceProductResult]
+
+
+@router.patch("/bulk/price", response_model=ApiResponse[BulkPriceEditResult])
+async def bulk_edit_price(body: BulkPriceEditRequest, session: SessionDep, current_user: CurrentUserDep):
+    """선택된 상품들의 가격/단가를 일괄 변경하고, 연결된 채널에 동기화한다.
+
+    - 모드 3종: 새 가격 직접 입력 / 금액 +- / 퍼센트 +-
+    - sync_channels=True면 변경 후 채널에 푸시 시도, 실패한 채널은 결과에 포함
+    - channel_types 빈 배열이면 각 상품에 연결된 모든 채널이 대상
+    """
+    if body.price is None and body.cost_price is None:
+        raise HTTPException(status_code=400, detail="price 또는 cost_price 중 하나는 필요합니다")
+
+    products_q = await session.execute(
+        select(Product).where(
+            Product.id.in_(body.product_ids),
+            Product.user_id == current_user.id,
+            Product.deleted_at.is_(None),
+        )
+    )
+    products = list(products_q.scalars().all())
+
+    items: list[BulkPriceProductResult] = []
+    for product in products:
+        old_price = float(product.price)
+        old_cost = float(product.cost_price) if product.cost_price is not None else None
+        new_price = _apply_change(old_price, body.price) if body.price else old_price
+        new_cost = _apply_change(old_cost, body.cost_price) if body.cost_price else old_cost
+
+        if new_price != old_price:
+            product.price = new_price
+        if new_cost != old_cost and body.cost_price is not None:
+            product.cost_price = new_cost
+
+        channel_results: list[ChannelDeleteResult] = []
+        if body.sync_channels and (new_price != old_price or new_cost != old_cost):
+            channel_results = [
+                ChannelDeleteResult(**r)
+                for r in await _sync_price_to_channels(session, product, current_user.id, body.channel_types or None)
+            ]
+
+        items.append(
+            BulkPriceProductResult(
+                product_id=product.id,
+                old_price=old_price,
+                new_price=new_price,
+                old_cost_price=old_cost,
+                new_cost_price=new_cost,
+                channel_results=channel_results,
+            )
+        )
+
+    await session.commit()
+    return ApiResponse(
+        data=BulkPriceEditResult(updated_count=len(items), sync_attempted=body.sync_channels, items=items)
+    )
+
+
+async def _sync_price_to_channels(
+    session, product: Product, user_id: uuid.UUID, channel_types: list[str] | None
+) -> list[dict]:
+    """변경된 가격을 채널에 동기화. 내부 _sync_update_to_channels와 비슷하지만
+    결과를 반환해 호출자가 응답에 포함할 수 있도록 한다."""
+    from src.core.exceptions import AuthenticationError, ChannelResourceNotFoundError
+    from src.infra.channels.factory import create_gateway
+
+    listing_q = select(ChannelListing).where(
+        ChannelListing.product_id == product.id,
+        ChannelListing.deleted_at.is_(None),
+    )
+    if channel_types:
+        listing_q = listing_q.where(ChannelListing.channel_type.in_(channel_types))
+    listings = list((await session.execute(listing_q)).scalars().all())
+
+    results: list[dict] = []
+    for listing in listings:
+        if listing.external_id == "PENDING":
+            results.append({"channel_type": listing.channel_type, "success": False, "error": "external_id 미발급"})
+            continue
+
+        ch_result = await session.execute(
+            select(Channel).where(
+                Channel.user_id == user_id,
+                Channel.channel_type == listing.channel_type,
+                Channel.deleted_at.is_(None),
+                Channel.is_active.is_(True),
+            )
+        )
+        channel = ch_result.scalar_one_or_none()
+        if not channel:
+            results.append(
+                {
+                    "channel_type": listing.channel_type,
+                    "success": False,
+                    "error": "채널 미연결",
+                }
+            )
+            continue
+
+        gateway = None
+        try:
+            gateway = create_gateway(channel, session)
+            await gateway.update_product(listing.external_id, product)
+            listing.sync_status = "SYNCED"
+            listing.last_synced_at = now()
+            listing.last_error = None
+            results.append({"channel_type": listing.channel_type, "success": True})
+        except AuthenticationError:
+            channel.is_active = False
+            listing.sync_status = "FAILED"
+            listing.last_error = "인증 만료 (재연결 필요)"
+            results.append(
+                {
+                    "channel_type": listing.channel_type,
+                    "success": False,
+                    "error": "채널 인증 만료",
+                    "requires_reconnect": True,
+                }
+            )
+        except ChannelResourceNotFoundError:
+            listing.sync_status = "STALE"
+            results.append(
+                {"channel_type": listing.channel_type, "success": False, "error": "채널에서 상품을 찾을 수 없음"}
+            )
+        except Exception as exc:
+            listing.sync_status = "FAILED"
+            listing.last_error = str(exc)
+            results.append({"channel_type": listing.channel_type, "success": False, "error": str(exc)})
+        finally:
+            if gateway:
+                with contextlib.suppress(Exception):
+                    await gateway.close()
+    return results
+
+
 @router.get("/{product_id}", response_model=ApiResponse[ProductDetailResponse])
 async def get_product(product_id: uuid.UUID, session: SessionDep, current_user: CurrentUserDep):
     result = await session.execute(

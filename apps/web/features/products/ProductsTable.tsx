@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { type RowSelectionState, createColumnHelper } from "@tanstack/react-table";
-import { Package, Loader2, Search, Trash2 } from "lucide-react";
+import { Package, Loader2, Search, Trash2, Tag } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useProducts, useDeleteProduct, type ChannelListingInfo } from "@/lib/hooks";
 import { BulkDeleteProductsDialog } from "./BulkDeleteProductsDialog";
+import { BulkPriceEditDialog } from "./BulkPriceEditDialog";
 import { DeleteProductDialog } from "./DeleteProductDialog";
 
 interface ProductRow {
@@ -31,6 +32,7 @@ export function ProductsTable() {
   const tc = useTranslations("common");
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [showBulkPrice, setShowBulkPrice] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null);
   const [q, setQ] = useQueryState("q", { defaultValue: "" });
   const [statusFilter, setStatusFilter] = useQueryState("status", { defaultValue: "" });
@@ -251,6 +253,14 @@ export function ProductsTable() {
           </span>
           <button
             type="button"
+            onClick={() => setShowBulkPrice(true)}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-accent-iris transition-colors hover:bg-accent-iris/15"
+          >
+            <Tag className="size-3.5" />
+            {t("editPriceBulk")}
+          </button>
+          <button
+            type="button"
             onClick={() => setShowBulkDelete(true)}
             className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-state-error transition-colors hover:bg-state-error/10"
           >
@@ -277,6 +287,14 @@ export function ProductsTable() {
         selectedProducts={selectedProducts}
         onConfirm={handleBulkDelete}
         loading={deleteProduct.isPending}
+      />
+
+      {/* 일괄 가격 수정 — 모드 + 채널별 미리보기 */}
+      <BulkPriceEditDialog
+        open={showBulkPrice}
+        onOpenChange={setShowBulkPrice}
+        selectedProducts={selectedProducts}
+        onApplied={() => setRowSelection({})}
       />
 
       <DataTable
