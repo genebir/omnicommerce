@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from src.infra.channels.cafe24.mapping import (
     map_order_status,
+    normalize_order_item,
     normalize_product,
     parse_product,
 )
@@ -65,3 +66,62 @@ def test_map_order_status():
     assert map_order_status("C00") == "CANCELED"
     assert map_order_status("C40") == "REFUNDED"
     assert map_order_status("UNKNOWN") == "PAID"
+
+
+def test_normalize_order_item_basic():
+    raw = {
+        "product_no": 42,
+        "product_code": "SKU-42",
+        "product_name": "주문 라인 상품",
+        "option_value": "색상=검정/사이즈=L",
+        "quantity": 3,
+        "product_price": "12000",
+        "payment_amount": "36000",
+    }
+    item = normalize_order_item(raw)
+    assert item["external_product_id"] == "42"
+    assert item["sku"] == "SKU-42"
+    assert item["name"] == "주문 라인 상품"
+    assert item["option_text"] == "색상=검정/사이즈=L"
+    assert item["quantity"] == 3
+    assert item["unit_price"] == Decimal("12000")
+    assert item["total_price"] == Decimal("36000")
+
+
+def test_normalize_order_item_payment_amount_missing():
+    """payment_amount 없으면 unit_price * quantity로 계산."""
+    raw = {
+        "product_no": 7,
+        "product_code": "SKU-7",
+        "product_name": "단가만 있는 상품",
+        "quantity": 4,
+        "product_price": "5000",
+    }
+    item = normalize_order_item(raw)
+    assert item["total_price"] == Decimal("20000")
+
+
+def test_normalize_order_item_fallback_shop_price():
+    """product_price 없으면 shop_price 사용."""
+    raw = {
+        "product_no": 8,
+        "product_code": "SKU-8",
+        "product_name": "shop_price 사용",
+        "quantity": 1,
+        "shop_price": "9900",
+    }
+    item = normalize_order_item(raw)
+    assert item["unit_price"] == Decimal("9900")
+    assert item["total_price"] == Decimal("9900")
+
+
+def test_normalize_order_item_minimal():
+    """필수 필드만 있어도 깨지지 않음."""
+    raw = {"product_name": "이름만 있는 라인"}
+    item = normalize_order_item(raw)
+    assert item["name"] == "이름만 있는 라인"
+    assert item["quantity"] == 1
+    assert item["unit_price"] == Decimal("0")
+    assert item["total_price"] == Decimal("0")
+    assert item["external_product_id"] is None
+    assert item["sku"] is None

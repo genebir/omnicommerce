@@ -115,4 +115,22 @@ export function useImportProducts() {
   });
 }
 
-export type { ChannelType, ConnectedChannel, ImportResult };
+interface SyncOrdersResult {
+  imported: number;
+  updated: number;
+  errors: number;
+}
+
+export function useSyncChannelOrders() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ channelId, days = 7 }: { channelId: string; days?: number }) =>
+      api.post<SyncOrdersResult>(`/channels/${channelId}/sync-orders?days=${days}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["channels"] });
+    },
+  });
+}
+
+export type { ChannelType, ConnectedChannel, ImportResult, SyncOrdersResult };

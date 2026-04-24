@@ -24,6 +24,14 @@ def _channel_product_sync(channel_code: str):
     return _task
 
 
+def _channel_order_sync(channel_code: str):
+    async def _task(ctx: dict) -> dict:
+        return await sync_channel_orders(ctx, channel_code=channel_code)
+
+    _task.__qualname__ = f"sync_{channel_code}_orders"
+    return _task
+
+
 async def startup(ctx: dict) -> None:
     """워커 시작 시 초기화."""
     import structlog
@@ -56,6 +64,10 @@ class WorkerSettings:
         cron(_channel_product_sync("cafe24"), hour={0, 6, 12, 18}, minute=0),
         cron(_channel_product_sync("naver"), hour={0, 6, 12, 18}, minute=5),
         cron(_channel_product_sync("coupang"), hour={0, 6, 12, 18}, minute=10),
+        # 주문 동기화 — 15분마다 (cafe24 우선)
+        cron(_channel_order_sync("cafe24"), minute={0, 15, 30, 45}),
+        cron(_channel_order_sync("naver"), minute={3, 18, 33, 48}),
+        cron(_channel_order_sync("coupang"), minute={6, 21, 36, 51}),
     ]
 
     on_startup = startup

@@ -101,8 +101,11 @@ async def _test_fetch_orders_returns_list(gateway, mock_fetch_orders):
     """주문 조회가 리스트를 반환하고, 필수 필드가 있는지 검증."""
     mock_fetch_orders(count=2)
 
-    since = datetime(2026, 1, 1, tzinfo=UTC)
-    result = await gateway.fetch_orders(since=since)
+    # 채널별 윈도우 제약(예: cafe24 89일)을 넘지 않도록 짧은 범위로 호출.
+    # until도 명시해 윈도우가 1회만 발생하도록 강제한다.
+    until = datetime(2026, 4, 1, tzinfo=UTC)
+    since = datetime(2026, 3, 1, tzinfo=UTC)
+    result = await gateway.fetch_orders(since=since, until=until)
 
     assert isinstance(result, list)
     assert len(result) == 2

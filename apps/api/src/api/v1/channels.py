@@ -5,6 +5,7 @@ import hashlib
 import hmac as hmac_module
 import json
 import uuid
+from datetime import UTC
 
 import httpx
 import structlog
@@ -454,6 +455,60 @@ async def import_products(
         await gateway.close()
 
     return ApiResponse(data=ImportResult(imported=imported, skipped=skipped, errors=errors))
+
+
+class SyncOrdersResult(BaseModel):
+    imported: int
+    updated: int
+    errors: int
+
+
+@router.post("/{channel_id}/sync-orders", response_model=ApiResponse[SyncOrdersResult])
+async def sync_orders(
+    channel_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    days: int = Query(7, ge=1, le=89, description="조회 기간 (일)"),
+):
+    """채널에서 최근 주문을 가져와 내부 DB로 동기화 (즉시 실행).
+
+    - days: 조회 기간 (cafe24는 최대 89일)
+    - 기존 external_order_id면 갱신, 없으면 신규 생성
+    """
+    from datetime import datetime, timedelta
+
+    from src.core.exceptions import AuthenticationError
+    from src.infra.channels.factory import create_gateway
+    from src.services.order_service import OrderService
+
+    channel = await session.get(Channel, channel_id)
+    if not channel or channel.user_id != current_user.id or channel.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="채널을 찾을 수 없습니다")
+
+    since = datetime.now(UTC) - timedelta(days=days)
+    gateway = create_gateway(channel, session)
+    try:
+        orders = await gateway.fetch_orders(since)
+    except AuthenticationError as exc:
+        channel.is_active = False
+        await session.commit()
+        await logger.awarning("주문 동기화 — 채널 인증 만료", channel_type=channel.channel_type)
+        raise HTTPException(status_code=401, detail=f"채널 재인증 필요: {exc}") from exc
+    finally:
+        await gateway.close()
+
+    service = OrderService(session)
+    imported, updated, errors = await service.import_from_channel(
+        user_id=current_user.id, channel_type=channel.channel_type, orders=orders
+    )
+    await logger.ainfo(
+        "주문 동기화 완료",
+        channel_type=channel.channel_type,
+        imported=imported,
+        updated=updated,
+        errors=errors,
+    )
+    return ApiResponse(data=SyncOrdersResult(imported=imported, updated=updated, errors=errors))
 
 
 @router.delete("/{channel_id}", status_code=204)

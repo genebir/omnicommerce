@@ -78,7 +78,7 @@ class CoupangGateway:
             json=[{"vendorItemId": sku, "quantity": qty}],
         )
 
-    async def fetch_orders(self, since: datetime) -> list:
+    async def fetch_orders(self, since: datetime, until: datetime | None = None) -> list:  # noqa: ARG002
         since_str = since.strftime("%Y-%m-%dT00:00:00")
         path = f"/v2/providers/openapi/apis/api/v4/vendors/{self._client.vendor_id}/ordersheets"
         data = await self._client.get(

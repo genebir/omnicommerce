@@ -1,16 +1,20 @@
 """카페24 채널 게이트웨이 구현 (§5, §6.2)."""
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from src.infra.channels.base import ExternalId, ProductPage
 from src.infra.channels.cafe24.client import Cafe24Client
 from src.infra.channels.cafe24.mapping import (
     Cafe24OrderDTO,
     map_order_status,
+    normalize_order_item,
     normalize_product,
     parse_product,
 )
 from src.infra.channels.registry import register
+
+# cafe24 주문 조회 API의 최대 조회 범위 (start_date~end_date)
+_CAFE24_ORDER_MAX_RANGE_DAYS = 89
 
 
 @register("cafe24")
@@ -93,34 +97,65 @@ class Cafe24Gateway:
             json={"request": {"variants": [{"variant_code": sku, "quantity": qty}]}},
         )
 
-    async def fetch_orders(self, since: datetime) -> list:
-        since_str = since.strftime("%Y-%m-%dT%H:%M:%S+09:00")
-        data = await self._client.get(
-            "/admin/orders",
-            params={"start_date": since_str, "limit": 500, "embed": "items"},
-        )
+    async def fetch_orders(self, since: datetime, until: datetime | None = None) -> list:
+        """[since, until] 범위의 주문을 모두 가져온다.
 
-        orders = []
-        for raw in data.get("orders", []):
-            dto = Cafe24OrderDTO.model_validate(raw)
-            orders.append(
-                {
-                    "external_order_id": dto.order_id,
-                    "channel_type": "cafe24",
-                    "status": map_order_status(dto.order_status),
-                    "buyer_name": dto.buyer_name,
-                    "buyer_email": dto.buyer_email,
-                    "buyer_phone": dto.buyer_cellphone,
-                    "total_amount": dto.actual_payment_amount,
-                    "shipping_fee": dto.shipping_fee,
-                    "recipient_name": dto.receiver_name,
-                    "recipient_phone": dto.receiver_cellphone,
-                    "recipient_address": dto.receiver_address1,
-                    "recipient_zipcode": dto.receiver_zipcode,
-                    "ordered_at": dto.order_date,
-                    "items": dto.items,
-                    "raw_payload": raw,
+        cafe24 제약:
+        - start_date / end_date 둘 다 필수
+        - 한 번에 최대 약 3개월 범위만 허용 → 자동으로 윈도우 분할
+        - offset 기반 페이지네이션 (limit ≤ 500)
+        """
+        if until is None:
+            until = datetime.now(UTC)
+
+        max_window = timedelta(days=_CAFE24_ORDER_MAX_RANGE_DAYS)
+        all_orders: list[dict] = []
+
+        window_start = since
+        while window_start < until:
+            window_end = min(window_start + max_window, until)
+            offset = 0
+            while True:
+                params = {
+                    "start_date": window_start.strftime("%Y-%m-%d"),
+                    "end_date": window_end.strftime("%Y-%m-%d"),
+                    "date_type": "order_date",
+                    "limit": 100,
+                    "offset": offset,
+                    "embed": "items",
                 }
-            )
+                data = await self._client.get("/admin/orders", params=params)
+                page = data.get("orders", [])
+                if not page:
+                    break
 
-        return orders
+                for raw in page:
+                    dto = Cafe24OrderDTO.model_validate(raw)
+                    items_raw = raw.get("items") or dto.items or []
+                    all_orders.append(
+                        {
+                            "external_order_id": dto.order_id,
+                            "channel_type": "cafe24",
+                            "status": map_order_status(dto.order_status),
+                            "buyer_name": dto.buyer_name,
+                            "buyer_email": dto.buyer_email,
+                            "buyer_phone": dto.buyer_cellphone,
+                            "total_amount": dto.actual_payment_amount,
+                            "shipping_fee": dto.shipping_fee,
+                            "recipient_name": dto.receiver_name,
+                            "recipient_phone": dto.receiver_cellphone,
+                            "recipient_address": dto.receiver_address1,
+                            "recipient_zipcode": dto.receiver_zipcode,
+                            "ordered_at": dto.order_date,
+                            "items": [normalize_order_item(it) for it in items_raw],
+                            "raw_payload": raw,
+                        }
+                    )
+
+                if len(page) < 100:
+                    break
+                offset += 100
+
+            window_start = window_end
+
+        return all_orders

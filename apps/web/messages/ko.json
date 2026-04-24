@@ -157,6 +157,9 @@
   },
   "orders": {
     "title": "주문",
+    "syncOrders": "주문 동기화",
+    "syncOrdersSuccess": "주문 {imported}개 추가, {updated}개 갱신됨",
+    "syncOrdersError": "주문 동기화에 실패했습니다",
     "empty": "주문 내역이 없습니다",
     "emptyHint": "채널을 연결하면 주문이 자동으로 수집됩니다",
     "columnOrderNumber": "주문번호",

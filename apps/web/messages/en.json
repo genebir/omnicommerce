@@ -157,6 +157,9 @@
   },
   "orders": {
     "title": "Orders",
+    "syncOrders": "Sync Orders",
+    "syncOrdersSuccess": "{imported} added, {updated} updated",
+    "syncOrdersError": "Failed to sync orders",
     "empty": "No orders yet",
     "emptyHint": "Connect a channel to start collecting orders",
     "columnOrderNumber": "Order #",

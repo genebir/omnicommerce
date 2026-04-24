@@ -98,3 +98,31 @@ _STATUS_MAP: dict[str, str] = {
 
 def map_order_status(cafe24_status: str) -> str:
     return _STATUS_MAP.get(cafe24_status, "PAID")
+
+
+def normalize_order_item(raw: dict) -> dict:
+    """cafe24 order item dict → 내부 OrderItem 필드 매핑.
+
+    cafe24 item 주요 필드:
+    - product_no, product_code, product_name
+    - option_value, option_id (옵션 텍스트)
+    - quantity (수량)
+    - product_price, shop_price (단가 — product_price가 표준)
+    - payment_amount (해당 라인 결제 합계)
+    """
+    qty = int(raw.get("quantity") or 1)
+    unit_price_str = raw.get("product_price") or raw.get("shop_price") or "0"
+    unit_price = Decimal(str(unit_price_str))
+    total_price_str = raw.get("payment_amount")
+    total_price = Decimal(str(total_price_str)) if total_price_str else unit_price * qty
+
+    product_no = raw.get("product_no")
+    return {
+        "external_product_id": str(product_no) if product_no is not None else None,
+        "sku": raw.get("product_code"),
+        "name": raw.get("product_name") or "",
+        "option_text": raw.get("option_value"),
+        "quantity": qty,
+        "unit_price": unit_price,
+        "total_price": total_price,
+    }

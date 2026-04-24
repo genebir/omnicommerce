@@ -77,7 +77,7 @@ class NaverGateway:
             json={"stockQuantity": qty, "modelName": sku},
         )
 
-    async def fetch_orders(self, since: datetime) -> list:
+    async def fetch_orders(self, since: datetime, until: datetime | None = None) -> list:  # noqa: ARG002
         since_str = since.strftime("%Y-%m-%dT%H:%M:%S.000+09:00")
         data = await self._client.get(
             "/v1/pay-order/seller/orders",
