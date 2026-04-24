@@ -11,7 +11,6 @@ import {
   XCircle,
   RotateCcw,
   Info,
-  ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -116,12 +115,11 @@ export function OrderDetail({ order }: OrderDetailProps) {
     );
   }
 
-  // cafe24 mall.read_personal 권한 누락 휴리스틱:
-  // 채널 주문인데 buyer/payment 핵심 필드가 모두 비어있으면 권한 안내 표시
-  const isMissingPersonal =
+  // cafe24가 구매자/결제 정보를 마스킹해서 보냄 (mall.read_personal 미사용 정책)
+  // → 사용자에게 "cafe24 관리자에서 직접 확인" 안내
+  const isMaskedByChannel =
     order.channel === "cafe24" &&
     order.buyer.name === null &&
-    order.buyer.phone === null &&
     order.totalAmount === 0;
 
   const itemsSubtotal = order.items.reduce(
@@ -203,23 +201,16 @@ export function OrderDetail({ order }: OrderDetailProps) {
         }}
       />
 
-      {isMissingPersonal && (
-        <div className="flex items-start gap-3 rounded-xl border border-state-warn/30 bg-state-warn/5 p-4">
-          <Info className="mt-0.5 size-5 shrink-0 text-state-warn" />
+      {isMaskedByChannel && (
+        <div className="flex items-start gap-3 rounded-xl border border-border-subtle bg-bg-surface-2 p-4">
+          <Info className="mt-0.5 size-5 shrink-0 text-text-tertiary" />
           <div className="space-y-1 text-sm">
             <p className="font-medium text-text-primary">
-              {t("personalScopeMissingTitle")}
+              {t("buyerInfoMaskedTitle")}
             </p>
             <p className="text-text-secondary">
-              {t("personalScopeMissingDesc")}
+              {t("buyerInfoMaskedDesc")}
             </p>
-            <Link
-              href="/channels"
-              className="inline-flex items-center gap-1 text-accent-iris hover:underline"
-            >
-              {t("personalScopeReconnect")}
-              <ExternalLink className="size-3" />
-            </Link>
           </div>
         </div>
       )}

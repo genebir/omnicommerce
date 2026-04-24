@@ -27,11 +27,10 @@ logger = structlog.stdlib.get_logger()
 
 router = APIRouter(prefix="/channels")
 
-_CAFE24_SCOPES = (
-    "mall.read_product,mall.write_product,"
-    "mall.read_order,mall.write_order,"
-    "mall.read_personal"  # buyer/recipient 등 개인정보 조회 권한 (없으면 cafe24가 마스킹)
-)
+# mall.read_personal은 cafe24 앱 심사가 필요해 일단 제외.
+# 그 결과 buyer/recipient/payment 필드는 마스킹된 채로 풀인됨 — 의도된 동작.
+# 운영자가 셀러 본인이므로 구매자 개인정보는 cafe24 관리자에서 직접 확인.
+_CAFE24_SCOPES = "mall.read_product,mall.write_product,mall.read_order,mall.write_order"
 
 
 def _make_oauth_state(user_id: uuid.UUID, mall_id: str) -> str:
