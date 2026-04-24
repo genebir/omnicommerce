@@ -334,11 +334,11 @@ export function BulkPriceEditDialog({
                     <col className="w-[30%]" />
                     <col className="w-[20%]" />
                   </colgroup>
-                  <thead className="sticky top-0 bg-bg-surface text-left text-xs text-text-tertiary">
+                  <thead className="sticky top-0 bg-bg-surface text-center text-xs text-text-tertiary">
                     <tr className="border-b border-border-subtle">
                       <th className="px-3 py-2 font-medium">{t("colProduct")}</th>
-                      <th className="px-3 py-2 text-right font-medium">{t("colCurrent")}</th>
-                      <th className="px-3 py-2 text-right font-medium">{t("colNew")}</th>
+                      <th className="px-3 py-2 font-medium">{t("colCurrent")}</th>
+                      <th className="px-3 py-2 font-medium">{t("colNew")}</th>
                       <th className="px-3 py-2 font-medium">{t("colChannels")}</th>
                     </tr>
                   </thead>
@@ -353,11 +353,11 @@ export function BulkPriceEditDialog({
                             {p.product.sku}
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-text-tertiary">
+                        <td className="whitespace-nowrap px-3 py-2 text-center font-mono text-text-tertiary">
                           {field === "price" ? formatCurrency(p.oldPrice) : "—"}
                         </td>
                         <td
-                          className={`whitespace-nowrap px-3 py-2 text-right font-mono ${
+                          className={`whitespace-nowrap px-3 py-2 text-center font-mono ${
                             mode !== "custom" && p.diff < 0
                               ? "text-state-error"
                               : mode !== "custom" && p.diff > 0
@@ -377,7 +377,7 @@ export function BulkPriceEditDialog({
                                 })
                               }
                               placeholder={String(p.oldPrice)}
-                              className="ml-auto block w-full text-right font-mono"
+                              className="mx-auto block w-full text-center font-mono"
                             />
                           ) : (
                             <div>
@@ -392,7 +392,7 @@ export function BulkPriceEditDialog({
                           )}
                         </td>
                         <td className="px-3 py-2">
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap justify-center gap-1">
                             {p.affectedChannels.length === 0 ? (
                               <span className="text-[11px] text-text-tertiary">—</span>
                             ) : (
@@ -437,7 +437,7 @@ function ToggleButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 cursor-pointer whitespace-nowrap rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+      className={`flex-1 cursor-pointer whitespace-nowrap rounded-lg border px-3 py-2 text-center text-sm font-medium transition-colors ${
         selected
           ? "border-accent-iris bg-accent-iris/10 text-accent-iris"
           : "border-border-subtle bg-bg-surface text-text-secondary hover:bg-bg-surface-2"
