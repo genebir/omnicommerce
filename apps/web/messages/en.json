@@ -189,6 +189,8 @@
     "modeAbsolute": "Set to new price",
     "modeIncAmount": "Add/subtract amount",
     "modeIncPercent": "Add/subtract percent",
+    "modeCustom": "Per-product price",
+    "customHint": "Enter a new price for each product directly in the \"New\" column below. Leave blank to keep current.",
     "placeholderAbsolute": "e.g. 19900",
     "placeholderIncAmount": "e.g. -1000 (down 1,000), 500 (up 500)",
     "placeholderIncPercent": "e.g. -10 (down 10%), 5 (up 5%)",

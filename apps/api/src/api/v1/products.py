@@ -391,6 +391,22 @@ class BulkPriceEditRequest(BaseModel):
         description="동기화할 채널 코드 목록 (빈 배열이면 연결된 모든 채널)",
     )
 
+    overrides: list["_PriceOverride"] = Field(
+        default_factory=list,
+        description="상품별 직접 새 가격 (해당 상품은 price/cost_price 모드보다 우선 적용)",
+    )
+
+
+class _PriceOverride(BaseModel):
+    """비정형 모드 — 상품별 직접 새 가격."""
+
+    product_id: uuid.UUID
+    price: float | None = Field(default=None, ge=0)
+    cost_price: float | None = Field(default=None, ge=0)
+
+
+BulkPriceEditRequest.model_rebuild()
+
 
 def _apply_change(current: float | None, change: BulkPriceField) -> float:
     base = float(current or 0)
@@ -434,8 +450,10 @@ async def bulk_edit_price(body: BulkPriceEditRequest, session: SessionDep, curre
     """
     from src.infra.db.models.price_history import ProductPriceHistory
 
-    if body.price is None and body.cost_price is None:
-        raise HTTPException(status_code=400, detail="price 또는 cost_price 중 하나는 필요합니다")
+    if body.price is None and body.cost_price is None and not body.overrides:
+        raise HTTPException(status_code=400, detail="price/cost_price/overrides 중 하나는 필요합니다")
+
+    overrides_map = {o.product_id: o for o in body.overrides}
 
     products_q = await session.execute(
         select(Product).where(
@@ -452,11 +470,27 @@ async def bulk_edit_price(body: BulkPriceEditRequest, session: SessionDep, curre
     for product in products:
         old_price = float(product.price)
         old_cost = float(product.cost_price) if product.cost_price is not None else None
-        new_price = _apply_change(old_price, body.price) if body.price else old_price
-        new_cost = _apply_change(old_cost, body.cost_price) if body.cost_price else old_cost
+
+        # 1) 상품별 override 우선 (absolute 모드와 같이 작동, history는 mode='custom'로 기록)
+        override = overrides_map.get(product.id)
+        if override is not None:
+            new_price = float(override.price) if override.price is not None else old_price
+            new_cost = float(override.cost_price) if override.cost_price is not None else old_cost
+            price_history_mode = "custom"
+            price_history_value = float(override.price) if override.price is not None else None
+            cost_history_value = float(override.cost_price) if override.cost_price is not None else None
+        else:
+            # 2) 일괄 모드 적용
+            new_price = _apply_change(old_price, body.price) if body.price else old_price
+            new_cost = _apply_change(old_cost, body.cost_price) if body.cost_price else old_cost
+            price_history_mode = body.price.mode if body.price else None
+            price_history_value = float(body.price.value) if body.price else None
+            cost_history_value = float(body.cost_price.value) if body.cost_price else None
 
         price_changed = new_price != old_price
-        cost_changed = body.cost_price is not None and new_cost != old_cost
+        cost_changed = override is not None and override.cost_price is not None and new_cost != old_cost
+        if override is None and body.cost_price is not None and new_cost != old_cost:
+            cost_changed = True
 
         if price_changed:
             product.price = new_price
@@ -480,8 +514,8 @@ async def bulk_edit_price(body: BulkPriceEditRequest, session: SessionDep, curre
                     old_value=old_price,
                     new_value=new_price,
                     batch_id=batch_id,
-                    change_mode=body.price.mode if body.price else None,
-                    change_value=float(body.price.value) if body.price else None,
+                    change_mode=price_history_mode,
+                    change_value=price_history_value,
                     channel_results=[r.model_dump() for r in channel_results] or None,
                 )
             )
@@ -494,8 +528,8 @@ async def bulk_edit_price(body: BulkPriceEditRequest, session: SessionDep, curre
                     old_value=old_cost,
                     new_value=new_cost,
                     batch_id=batch_id,
-                    change_mode=body.cost_price.mode if body.cost_price else None,
-                    change_value=float(body.cost_price.value) if body.cost_price else None,
+                    change_mode=price_history_mode,
+                    change_value=cost_history_value,
                 )
             )
 

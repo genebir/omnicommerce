@@ -128,12 +128,19 @@ export interface BulkPriceField {
   round_to?: number;
 }
 
+export interface ProductPriceOverride {
+  product_id: string;
+  price?: number;
+  cost_price?: number;
+}
+
 export interface BulkPriceEditRequest {
   product_ids: string[];
   price?: BulkPriceField;
   cost_price?: BulkPriceField;
   sync_channels?: boolean;
   channel_types?: string[];
+  overrides?: ProductPriceOverride[];
 }
 
 export interface BulkPriceProductResult {

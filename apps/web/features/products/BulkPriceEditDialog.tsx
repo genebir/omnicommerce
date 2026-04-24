@@ -25,7 +25,7 @@ import {
   type ChannelListingInfo,
 } from "@/lib/hooks";
 
-type Mode = "absolute" | "inc_amount" | "inc_percent";
+type Mode = "absolute" | "inc_amount" | "inc_percent" | "custom";
 type Field = "price" | "cost_price";
 
 interface SelectedProduct {
@@ -77,6 +77,7 @@ export function BulkPriceEditDialog({
       setValueStr("");
       setMode("absolute");
       setField("price");
+      setCustomPrices({});
       const allChannelTypes = (connectedChannels ?? []).map((c) => c.channel_type);
       setSelectedChannels(new Set(allChannelTypes));
     }
@@ -84,9 +85,24 @@ export function BulkPriceEditDialog({
   };
 
   const value = parseFloat(valueStr || "0") || 0;
+
+  // 비정형 모드 — 상품별 새 가격 입력
+  const [customPrices, setCustomPrices] = useState<Record<string, string>>({});
+  const customMap = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const [pid, str] of Object.entries(customPrices)) {
+      const n = parseFloat(str);
+      if (!Number.isNaN(n) && n >= 0) m[pid] = n;
+    }
+    return m;
+  }, [customPrices]);
+
   const previews = useMemo(() => {
     return selectedProducts.map((p) => {
-      const newPrice = applyChange(p.price, mode, value, roundTo);
+      const newPrice =
+        mode === "custom"
+          ? customMap[p.id] ?? p.price
+          : applyChange(p.price, mode, value, roundTo);
       const channelTypesInProduct = p.channel_listings.map((cl) => cl.channel_type);
       return {
         product: p,
@@ -96,18 +112,29 @@ export function BulkPriceEditDialog({
         affectedChannels: channelTypesInProduct.filter((ct) => selectedChannels.has(ct)),
       };
     });
-  }, [selectedProducts, mode, value, roundTo, selectedChannels]);
+  }, [selectedProducts, mode, value, roundTo, selectedChannels, customMap]);
 
   const channels = connectedChannels ?? [];
 
   async function handleApply() {
-    const change: BulkPriceField = { mode, value, round_to: roundTo };
-    const res = await bulkEdit.mutateAsync({
+    const requestBody = {
       product_ids: selectedProducts.map((p) => p.id),
-      [field]: change,
       sync_channels: selectedChannels.size > 0,
       channel_types: Array.from(selectedChannels),
-    });
+    } as Parameters<typeof bulkEdit.mutateAsync>[0];
+
+    if (mode === "custom") {
+      requestBody.overrides = Object.entries(customMap).map(([product_id, price]) => ({
+        product_id,
+        ...(field === "price" ? { price } : { cost_price: price }),
+      }));
+    } else {
+      const change: BulkPriceField = { mode, value, round_to: roundTo };
+      if (field === "price") requestBody.price = change;
+      else requestBody.cost_price = change;
+    }
+
+    const res = await bulkEdit.mutateAsync(requestBody);
 
     const data = res.data!;
     // 채널별 결과 집계
@@ -156,7 +183,12 @@ export function BulkPriceEditDialog({
     onOpenChange(false);
   }
 
-  const isValid = valueStr.trim() !== "" && !Number.isNaN(parseFloat(valueStr));
+  const isValid =
+    mode === "custom"
+      ? Object.keys(customMap).length > 0
+      : valueStr.trim() !== "" && !Number.isNaN(parseFloat(valueStr));
+  // custom 모드는 항상 미리보기 표가 보여야 입력 가능 (input이 표 안에 있음)
+  const showPreview = mode === "custom" || isValid;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -186,7 +218,7 @@ export function BulkPriceEditDialog({
             <Label>
               <span className="text-text-tertiary">{t("step2")}</span>
             </Label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <ToggleButton selected={mode === "absolute"} onClick={() => setMode("absolute")}>
                 {t("modeAbsolute")}
               </ToggleButton>
@@ -196,44 +228,54 @@ export function BulkPriceEditDialog({
               <ToggleButton selected={mode === "inc_percent"} onClick={() => setMode("inc_percent")}>
                 {t("modeIncPercent")}
               </ToggleButton>
+              <ToggleButton selected={mode === "custom"} onClick={() => setMode("custom")}>
+                {t("modeCustom")}
+              </ToggleButton>
             </div>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={valueStr}
-                onChange={(e) => setValueStr(e.target.value)}
-                placeholder={
-                  mode === "absolute"
-                    ? t("placeholderAbsolute")
-                    : mode === "inc_amount"
-                      ? t("placeholderIncAmount")
-                      : t("placeholderIncPercent")
-                }
-                className="flex-1"
-              />
-              <span className="text-sm text-text-tertiary">
-                {mode === "inc_percent" ? "%" : "원"}
-              </span>
-            </div>
-            {mode !== "inc_percent" && (
-              <div className="flex items-center gap-2 text-xs text-text-tertiary">
-                <span>{t("roundTo")}</span>
-                {[1, 10, 100, 1000].map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRoundTo(r)}
-                    className={`cursor-pointer rounded-md px-2 py-0.5 ${
-                      roundTo === r
-                        ? "bg-accent-iris/15 text-accent-iris"
-                        : "text-text-tertiary hover:text-text-primary"
-                    }`}
-                  >
-                    {r === 1 ? t("noRound") : `${r}원`}
-                  </button>
-                ))}
-              </div>
+            {mode !== "custom" && (
+              <>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    value={valueStr}
+                    onChange={(e) => setValueStr(e.target.value)}
+                    placeholder={
+                      mode === "absolute"
+                        ? t("placeholderAbsolute")
+                        : mode === "inc_amount"
+                          ? t("placeholderIncAmount")
+                          : t("placeholderIncPercent")
+                    }
+                    className="flex-1"
+                  />
+                  <span className="text-sm text-text-tertiary">
+                    {mode === "inc_percent" ? "%" : "원"}
+                  </span>
+                </div>
+                {mode !== "inc_percent" && (
+                  <div className="flex items-center gap-2 text-xs text-text-tertiary">
+                    <span>{t("roundTo")}</span>
+                    {[1, 10, 100, 1000].map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setRoundTo(r)}
+                        className={`cursor-pointer rounded-md px-2 py-0.5 ${
+                          roundTo === r
+                            ? "bg-accent-iris/15 text-accent-iris"
+                            : "text-text-tertiary hover:text-text-primary"
+                        }`}
+                      >
+                        {r === 1 ? t("noRound") : `${r}원`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            {mode === "custom" && (
+              <p className="text-xs text-text-tertiary">{t("customHint")}</p>
             )}
           </section>
 
@@ -276,7 +318,7 @@ export function BulkPriceEditDialog({
           </section>
 
           {/* 미리보기 */}
-          {isValid && (
+          {showPreview && (
             <section className="space-y-2">
               <div className="flex items-center gap-2">
                 <Sparkles className="size-4 text-accent-iris" />
@@ -306,18 +348,36 @@ export function BulkPriceEditDialog({
                         </td>
                         <td
                           className={`p-2 text-right font-mono ${
-                            p.diff < 0
+                            mode !== "custom" && p.diff < 0
                               ? "text-state-error"
-                              : p.diff > 0
+                              : mode !== "custom" && p.diff > 0
                                 ? "text-state-success"
                                 : "text-text-primary"
                           }`}
                         >
-                          {field === "price" ? formatCurrency(p.newPrice) : "—"}
-                          {field === "price" && p.diff !== 0 && (
-                            <span className="ml-1 text-[11px]">
-                              ({p.diff > 0 ? "+" : ""}{formatCurrency(p.diff)})
-                            </span>
+                          {mode === "custom" ? (
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              value={customPrices[p.product.id] ?? ""}
+                              onChange={(e) =>
+                                setCustomPrices({
+                                  ...customPrices,
+                                  [p.product.id]: e.target.value,
+                                })
+                              }
+                              placeholder={String(p.oldPrice)}
+                              className="w-28 text-right font-mono"
+                            />
+                          ) : (
+                            <>
+                              {field === "price" ? formatCurrency(p.newPrice) : "—"}
+                              {field === "price" && p.diff !== 0 && (
+                                <span className="ml-1 text-[11px]">
+                                  ({p.diff > 0 ? "+" : ""}{formatCurrency(p.diff)})
+                                </span>
+                              )}
+                            </>
                           )}
                         </td>
                         <td className="p-2">

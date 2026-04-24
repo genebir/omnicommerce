@@ -189,6 +189,8 @@
     "modeAbsolute": "새 가격으로",
     "modeIncAmount": "금액 변경",
     "modeIncPercent": "퍼센트 변경",
+    "modeCustom": "상품별 직접 입력",
+    "customHint": "아래 미리보기 표의 \"변경 후\" 칸에 상품마다 새 가격을 직접 입력하세요. 빈 칸은 그대로 둡니다.",
     "placeholderAbsolute": "예) 19900",
     "placeholderIncAmount": "예) -1000 (1,000원 인하), 500 (500원 인상)",
     "placeholderIncPercent": "예) -10 (10% 인하), 5 (5% 인상)",
