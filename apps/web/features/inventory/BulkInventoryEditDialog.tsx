@@ -120,7 +120,7 @@ export function BulkInventoryEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-3xl overflow-y-auto sm:w-auto">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-[min(1100px,90vw)] overflow-y-auto sm:w-auto">
         <DialogHeader>
           <DialogTitle>{t("title", { count: selectedItems.length })}</DialogTitle>
         </DialogHeader>
