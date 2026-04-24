@@ -43,7 +43,13 @@ export {
   useImportProducts,
   useSyncChannelOrders,
 } from "./use-channels";
-export { useDashboardStats, useSalesStats, useRecentActivity } from "./use-dashboard";
+export {
+  useDashboardStats,
+  useSalesStats,
+  useRecentActivity,
+  useLowStock,
+  type LowStockItem,
+} from "./use-dashboard";
 export { useChangePassword } from "./use-auth";
 export {
   usePendingMatches,

@@ -1,5 +1,6 @@
 """대시보드 통계 API 엔드포인트."""
 
+import uuid
 from datetime import timedelta, timezone
 
 from fastapi import APIRouter, Query
@@ -7,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import extract, func, select
 
 from src.api.v1.schemas import ApiResponse
-from src.core.deps import SessionDep
+from src.core.deps import CurrentUserDep, SessionDep
 from src.infra.db.models.inventory import Inventory
 from src.infra.db.models.order import Order
 from src.infra.db.models.product import Product
@@ -159,3 +160,46 @@ async def get_recent_activity(
     activities.sort(key=lambda a: a.timestamp, reverse=True)
 
     return ApiResponse(data=ActivityResponse(items=activities[:limit]))
+
+
+class LowStockItem(BaseModel):
+    inventory_id: uuid.UUID
+    product_id: uuid.UUID
+    sku: str
+    product_name: str
+    available: int
+    total: int
+
+
+@router.get("/low-stock", response_model=ApiResponse[list[LowStockItem]])
+async def get_low_stock(
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    threshold: int = Query(10, ge=0, le=10000, description="가용 재고 임계값 (이하)"),
+    limit: int = Query(10, ge=1, le=50),
+):
+    """가용 재고가 임계값 이하인 SKU 목록 — 대시보드 알림용."""
+    rows = await session.execute(
+        select(Inventory, Product)
+        .join(Product, Inventory.product_id == Product.id)
+        .where(
+            Inventory.deleted_at.is_(None),
+            Product.deleted_at.is_(None),
+            Product.user_id == current_user.id,
+            Inventory.available <= threshold,
+        )
+        .order_by(Inventory.available.asc(), Product.name.asc())
+        .limit(limit)
+    )
+    items = [
+        LowStockItem(
+            inventory_id=inv.id,
+            product_id=p.id,
+            sku=inv.sku,
+            product_name=p.name,
+            available=inv.available,
+            total=inv.total_quantity,
+        )
+        for inv, p in rows.all()
+    ]
+    return ApiResponse(data=items)

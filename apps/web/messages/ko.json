@@ -91,6 +91,28 @@
     "noSalesData": "매출 데이터가 없습니다",
     "periodMonths": "{count}개월"
   },
+  "dashboardWidgets": {
+    "matchingTitle": "매칭 검토 대기",
+    "matchingEmpty": "검토할 매칭이 없습니다",
+    "matchingHint": "확인하러 가기",
+    "lowStockTitle": "재고 부족",
+    "lowStockEmpty": "재고가 부족한 상품이 없습니다",
+    "seeAll": "전체 보기 →",
+    "priceHistoryTitle": "최근 가격 변경",
+    "priceHistoryEmpty": "최근 변경된 가격이 없습니다",
+    "modeAbsolute": "{value}로 변경",
+    "modeIncAmountUp": "{value} 인상",
+    "modeIncAmountDown": "{value} 인하",
+    "modeIncPercentUp": "{value}% 인상",
+    "modeIncPercentDown": "{value}% 인하",
+    "modeRevert": "이전 가격으로 되돌림",
+    "modeOther": "수동 변경",
+    "productCount": "{count}개 상품",
+    "revertedBadge": "되돌려짐",
+    "revertAction": "되돌리기",
+    "revertSuccess": "이전 가격으로 되돌렸습니다",
+    "revertError": "되돌리기에 실패했습니다"
+  },
   "products": {
     "title": "상품",
     "empty": "등록된 상품이 없습니다",

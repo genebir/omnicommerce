@@ -65,4 +65,32 @@ export function useRecentActivity(limit = 10) {
   });
 }
 
-export type { DashboardStats, MonthlySales, SalesData, ActivityItem, ActivityData };
+interface LowStockItem {
+  inventory_id: string;
+  product_id: string;
+  sku: string;
+  product_name: string;
+  available: number;
+  total: number;
+}
+
+export function useLowStock(threshold = 10, limit = 10) {
+  return useQuery({
+    queryKey: ["dashboard-low-stock", threshold, limit],
+    queryFn: async () => {
+      const res = await api.get<LowStockItem[]>(
+        `/dashboard/low-stock?threshold=${threshold}&limit=${limit}`,
+      );
+      return res.data;
+    },
+  });
+}
+
+export type {
+  DashboardStats,
+  MonthlySales,
+  SalesData,
+  ActivityItem,
+  ActivityData,
+  LowStockItem,
+};

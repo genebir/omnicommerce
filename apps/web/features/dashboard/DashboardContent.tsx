@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Package, ShoppingCart, AlertTriangle, RefreshCw, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { OnboardingWizard, OnboardingChecklist } from "@/features/onboarding";
+import { AlertWidgets } from "./AlertWidgets";
 import { StatCard } from "./StatCard";
 import { RecentActivity } from "./RecentActivity";
 import { SalesChart } from "./SalesChart";
@@ -19,6 +20,8 @@ export function DashboardContent() {
 
   useEffect(() => {
     if (!localStorage.getItem(ONBOARDING_DONE_KEY)) {
+      // 클라이언트 hydration 직후 1회만 결정 — localStorage는 SSR 불가하므로 effect 불가피.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowWizard(true);
     }
   }, []);
@@ -59,6 +62,7 @@ export function DashboardContent() {
             </div>
           )}
 
+          <AlertWidgets />
           <SalesChart />
           <ChannelSummary />
           <RecentActivity />

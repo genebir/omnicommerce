@@ -91,6 +91,28 @@
     "noSalesData": "No sales data",
     "periodMonths": "{count} months"
   },
+  "dashboardWidgets": {
+    "matchingTitle": "Pending Matches",
+    "matchingEmpty": "No matches awaiting review",
+    "matchingHint": "Review now",
+    "lowStockTitle": "Low Stock",
+    "lowStockEmpty": "No low-stock items",
+    "seeAll": "See all →",
+    "priceHistoryTitle": "Recent Price Changes",
+    "priceHistoryEmpty": "No recent price changes",
+    "modeAbsolute": "Set to {value}",
+    "modeIncAmountUp": "+{value}",
+    "modeIncAmountDown": "−{value}",
+    "modeIncPercentUp": "+{value}%",
+    "modeIncPercentDown": "−{value}%",
+    "modeRevert": "Reverted to previous",
+    "modeOther": "Manual change",
+    "productCount": "{count} product(s)",
+    "revertedBadge": "Reverted",
+    "revertAction": "Undo",
+    "revertSuccess": "Reverted to previous price",
+    "revertError": "Failed to revert"
+  },
   "products": {
     "title": "Products",
     "empty": "No products yet",
