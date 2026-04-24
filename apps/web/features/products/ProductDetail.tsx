@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Edit, Package, Trash2, ImageIcon, Plus, X, ExternalLink, Loader2 } from "lucide-react";
+import { ArrowLeft, Edit, Package, Trash2, ImageIcon, Plus, X, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -10,15 +10,13 @@ import { ChannelBadge, SyncStatus } from "@/components/patterns";
 import { useDeleteProduct, useAddProductImage, useDeleteProductImage, type ChannelListingInfo } from "@/lib/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownItem,
   DropdownSeparator,
 } from "@/components/ui/dropdown-menu";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
+import { DeleteProductDialog } from "./DeleteProductDialog";
 
 interface ProductImage {
   id: string;
@@ -54,90 +52,6 @@ function toSyncStatus(status: string): "synced" | "syncing" | "pending" | "faile
     STALE: "pending",
   };
   return map[status] ?? "pending";
-}
-
-/** 채널 선택 삭제 다이얼로그 */
-function DeleteWithChannelsDialog({
-  open,
-  onOpenChange,
-  productName,
-  channelListings,
-  onConfirm,
-  loading,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  productName: string;
-  channelListings: ChannelListingInfo[];
-  onConfirm: (channelTypes: string[]) => void;
-  loading: boolean;
-}) {
-  const t = useTranslations("products");
-  const tc = useTranslations("common");
-  const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(channelListings.map((cl) => cl.channel_type))
-  );
-
-  function handleOpenChange(v: boolean) {
-    if (v) setSelected(new Set(channelListings.map((cl) => cl.channel_type)));
-    onOpenChange(v);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-state-error">{t("deleteTitle")}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          <p className="text-sm text-text-secondary">
-            <span className="font-medium text-text-primary">{productName}</span>
-            {t("deleteConfirmSuffix")}
-          </p>
-
-          {channelListings.length > 0 && (
-            <div className="rounded-xl border border-border-subtle bg-bg-surface-2 p-4 space-y-3">
-              <p className="text-xs font-medium text-text-tertiary uppercase tracking-wide">
-                {t("deleteChannelLabel")}
-              </p>
-              {channelListings.map((cl) => (
-                <label key={cl.channel_type} className="flex cursor-pointer items-center gap-3">
-                  <Checkbox
-                    checked={selected.has(cl.channel_type)}
-                    onCheckedChange={(checked) => {
-                      const next = new Set(selected);
-                      if (checked) next.add(cl.channel_type);
-                      else next.delete(cl.channel_type);
-                      setSelected(next);
-                    }}
-                  />
-                  <ChannelBadge code={cl.channel_type} />
-                  <span className="font-mono text-xs text-text-tertiary">
-                    #{cl.external_id}
-                  </span>
-                </label>
-              ))}
-              <p className="text-xs text-text-tertiary">{t("deleteChannelHint")}</p>
-            </div>
-          )}
-        </div>
-
-        <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>
-            {tc("cancel")}
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => onConfirm(Array.from(selected))}
-            disabled={loading}
-          >
-            {loading ? <Loader2 className="size-4 animate-spin" /> : tc("delete")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 export function ProductDetail({ product }: ProductDetailProps) {
@@ -241,7 +155,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
         </DropdownMenu>
       </div>
 
-      <DeleteWithChannelsDialog
+      <DeleteProductDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
         productName={product.name}

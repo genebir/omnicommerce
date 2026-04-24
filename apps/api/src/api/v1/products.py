@@ -401,10 +401,10 @@ async def delete_product(
     current_user: CurrentUserDep,
     channel_types: Annotated[list[str], Query()] = None,  # type: ignore[assignment]
 ):
-    """상품을 삭제한다. channel_types가 지정되면 해당 채널에서도 삭제를 시도한다.
+    """상품을 삭제한다.
 
-    - channel_types 미지정(None): 연결된 모든 채널에서 삭제 시도
-    - channel_types 지정: 선택한 채널에서만 삭제 시도
+    - channel_types 미지정 또는 빈 배열: 채널은 건드리지 않고 내부 DB에서만 soft-delete
+    - channel_types 지정: 그 채널에서도 함께 삭제 시도
     - 채널 삭제 실패 시에도 로컬 삭제는 진행되며, 결과를 응답에 포함
     """
     service = ProductService(session)
@@ -412,10 +412,11 @@ async def delete_product(
     if not existing or existing.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다")
 
-    selected_channels = channel_types if channel_types else None  # None = 모든 채널
-    channel_results = await _sync_delete_to_channels(
-        session, product_id, current_user.id, channel_types=selected_channels
-    )
+    channel_results: list[dict] = []
+    if channel_types:
+        channel_results = await _sync_delete_to_channels(
+            session, product_id, current_user.id, channel_types=channel_types
+        )
     await service.soft_delete(product_id)
 
     return ApiResponse(data=DeleteProductResult(channel_results=[ChannelDeleteResult(**r) for r in channel_results]))

@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useProducts, useDeleteProduct, type ChannelListingInfo } from "@/lib/hooks";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { DeleteProductDialog } from "./DeleteProductDialog";
 
 interface ProductRow {
   id: string;
@@ -25,97 +26,6 @@ interface ProductRow {
 }
 
 const columnHelper = createColumnHelper<ProductRow>();
-
-/** 단건 삭제 시 채널 선택 다이얼로그 */
-function DeleteWithChannelsDialog({
-  open,
-  onOpenChange,
-  product,
-  onConfirm,
-  loading,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  product: ProductRow | null;
-  onConfirm: (channelTypes: string[]) => void;
-  loading: boolean;
-}) {
-  const t = useTranslations("products");
-  const tc = useTranslations("common");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-
-  function handleOpenChange(v: boolean) {
-    if (v && product) {
-      setSelected(new Set(product.channel_listings.map((cl) => cl.channel_type)));
-    }
-    onOpenChange(v);
-  }
-
-  if (!product) return null;
-
-  const hasChannels = product.channel_listings.length > 0;
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-state-error">{t("deleteTitle")}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          <p className="text-sm text-text-secondary">
-            <span className="font-medium text-text-primary">{product.name}</span>
-            {t("deleteConfirmSuffix")}
-          </p>
-
-          {hasChannels && (
-            <div className="rounded-xl border border-border-subtle bg-bg-surface-2 p-4 space-y-3">
-              <p className="text-xs font-medium text-text-tertiary uppercase tracking-wide">
-                {t("deleteChannelLabel")}
-              </p>
-              {product.channel_listings.map((cl) => (
-                <label
-                  key={cl.channel_type}
-                  className="flex cursor-pointer items-center gap-3"
-                >
-                  <Checkbox
-                    checked={selected.has(cl.channel_type)}
-                    onCheckedChange={(checked) => {
-                      const next = new Set(selected);
-                      if (checked) next.add(cl.channel_type);
-                      else next.delete(cl.channel_type);
-                      setSelected(next);
-                    }}
-                  />
-                  <ChannelBadge code={cl.channel_type} />
-                  <span className="font-mono text-xs text-text-tertiary">
-                    #{cl.external_id}
-                  </span>
-                </label>
-              ))}
-              <p className="text-xs text-text-tertiary">
-                {t("deleteChannelHint")}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>
-            {tc("cancel")}
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => onConfirm(Array.from(selected))}
-            disabled={loading}
-          >
-            {loading ? <Loader2 className="size-4 animate-spin" /> : tc("delete")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 /** 일괄 삭제 확인 다이얼로그 */
 function BulkDeleteDialog({
@@ -375,10 +285,11 @@ export function ProductsTable() {
       )}
 
       {/* 단건 삭제 — 채널 선택 */}
-      <DeleteWithChannelsDialog
+      <DeleteProductDialog
         open={!!deleteTarget}
         onOpenChange={(v) => !v && setDeleteTarget(null)}
-        product={deleteTarget}
+        productName={deleteTarget?.name ?? ""}
+        channelListings={deleteTarget?.channel_listings ?? []}
         onConfirm={handleSingleDelete}
         loading={deleteProduct.isPending}
       />
