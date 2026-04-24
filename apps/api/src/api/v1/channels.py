@@ -27,7 +27,11 @@ logger = structlog.stdlib.get_logger()
 
 router = APIRouter(prefix="/channels")
 
-_CAFE24_SCOPES = "mall.read_product,mall.write_product,mall.read_order,mall.write_order"
+_CAFE24_SCOPES = (
+    "mall.read_product,mall.write_product,"
+    "mall.read_order,mall.write_order,"
+    "mall.read_personal"  # buyer/recipient 등 개인정보 조회 권한 (없으면 cafe24가 마스킹)
+)
 
 
 def _make_oauth_state(user_id: uuid.UUID, mall_id: str) -> str:

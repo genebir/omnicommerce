@@ -110,6 +110,7 @@ class Cafe24Gateway:
 
         max_window = timedelta(days=_CAFE24_ORDER_MAX_RANGE_DAYS)
         all_orders: list[dict] = []
+        seen_ids: set[str] = set()  # 윈도우 경계 중복 회피
 
         window_start = since
         while window_start < until:
@@ -131,6 +132,9 @@ class Cafe24Gateway:
 
                 for raw in page:
                     dto = Cafe24OrderDTO.model_validate(raw)
+                    if dto.order_id in seen_ids:
+                        continue
+                    seen_ids.add(dto.order_id)
                     items_raw = raw.get("items") or dto.items or []
                     all_orders.append(
                         {

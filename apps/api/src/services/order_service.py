@@ -123,12 +123,17 @@ class OrderService:
                     order.ordered_at = _parse_dt(o.get("ordered_at"))
                     order.raw_payload = o.get("raw_payload")
 
-                    # 기존 items 모두 삭제 후 재삽입 (cascade가 처리)
+                    # 신규 Order는 PK 발급을 위해 flush
+                    await self._session.flush()
+
+                    # 기존 items 모두 삭제 (selectinload로 로드된 상태이므로 안전)
                     if not is_new:
                         for it in list(order.items):
                             await self._session.delete(it)
                         await self._session.flush()
 
+                    # 새 items는 order_id를 직접 set해서 add — collection mutation 회피
+                    # (async 세션의 lazy collection load 트리거 방지)
                     for item_dict in o.get("items") or []:
                         sku = item_dict.get("sku")
                         product_id: uuid.UUID | None = None
@@ -144,8 +149,9 @@ class OrderService:
                                 product_map[sku] = pres.scalar_one_or_none()
                             product_id = product_map[sku]
 
-                        order.items.append(
+                        self._session.add(
                             OrderItem(
+                                order_id=order.id,
                                 product_id=product_id,
                                 external_product_id=item_dict.get("external_product_id"),
                                 sku=sku,

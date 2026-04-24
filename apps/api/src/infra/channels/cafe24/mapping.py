@@ -42,16 +42,20 @@ class NormalizedProduct(BaseModel):
 
 
 class Cafe24OrderDTO(BaseModel):
-    """[1단계 Parse] 카페24 주문 응답 DTO."""
+    """[1단계 Parse] 카페24 주문 응답 DTO.
+
+    cafe24는 권한이 없는 필드를 명시적 null로 반환할 수 있으므로
+    문자열 필드도 None을 허용한다.
+    """
 
     order_id: str
-    order_date: str
+    order_date: str | None = None
     buyer_name: str | None = None
     buyer_email: str | None = None
     buyer_cellphone: str | None = None
-    shipping_fee: str = "0"
-    actual_payment_amount: str = "0"
-    order_status: str = ""
+    shipping_fee: str | None = "0"
+    actual_payment_amount: str | None = "0"
+    order_status: str | None = None
     items: list[dict] = []
     receiver_name: str | None = None
     receiver_cellphone: str | None = None
@@ -96,7 +100,9 @@ _STATUS_MAP: dict[str, str] = {
 }
 
 
-def map_order_status(cafe24_status: str) -> str:
+def map_order_status(cafe24_status: str | None) -> str:
+    if not cafe24_status:
+        return "PAID"
     return _STATUS_MAP.get(cafe24_status, "PAID")
 
 
