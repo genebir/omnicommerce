@@ -131,7 +131,7 @@ export function BulkInventoryEditDialog({
             <Label>
               <span className="text-text-tertiary">{t("step1")}</span>
             </Label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid max-w-md grid-cols-2 gap-2">
               <ToggleButton selected={mode === "absolute"} onClick={() => setMode("absolute")}>
                 {t("modeAbsolute")}
               </ToggleButton>
@@ -208,17 +208,17 @@ export function BulkInventoryEditDialog({
                     <col className="w-[20%]" />
                     <col className="w-[25%]" />
                   </colgroup>
-                  <thead className="sticky top-0 bg-bg-surface text-left text-xs text-text-tertiary">
+                  <thead className="sticky top-0 bg-bg-surface text-center text-xs text-text-tertiary">
                     <tr className="border-b border-border-subtle">
-                      <th className="px-3 py-2 font-medium">{t("colSku")}</th>
-                      <th className="px-3 py-2 text-right font-medium">{t("colCurrent")}</th>
-                      <th className="px-3 py-2 text-right font-medium">{t("colNew")}</th>
+                      <th className="px-6 py-2 font-medium">{t("colSku")}</th>
+                      <th className="px-6 py-2 font-medium">{t("colCurrent")}</th>
+                      <th className="px-6 py-2 font-medium">{t("colNew")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {previews.map((p) => (
                       <tr key={p.inv.id} className="border-b border-border-subtle last:border-0">
-                        <td className="px-3 py-2 text-text-primary">
+                        <td className="px-6 py-2 text-text-primary">
                           <div className="font-mono text-xs">{p.inv.sku}</div>
                           {productNameBySku[p.inv.sku] && (
                             <div className="truncate text-[11px] text-text-tertiary" title={productNameBySku[p.inv.sku]}>
@@ -226,11 +226,11 @@ export function BulkInventoryEditDialog({
                             </div>
                           )}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-text-tertiary">
+                        <td className="whitespace-nowrap px-6 py-2 text-center font-mono text-text-tertiary">
                           {p.inv.total_quantity}
                         </td>
                         <td
-                          className={`whitespace-nowrap px-3 py-2 text-right font-mono ${
+                          className={`whitespace-nowrap px-6 py-2 text-center font-mono ${
                             p.diff < 0
                               ? "text-state-error"
                               : p.diff > 0

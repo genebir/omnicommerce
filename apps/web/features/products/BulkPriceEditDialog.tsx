@@ -203,7 +203,7 @@ export function BulkPriceEditDialog({
             <Label>
               <span className="text-text-tertiary">{t("step1")}</span>
             </Label>
-            <div className="flex gap-2">
+            <div className="flex max-w-md gap-2">
               <ToggleButton selected={field === "price"} onClick={() => setField("price")}>
                 {t("fieldPrice")}
               </ToggleButton>
@@ -218,7 +218,7 @@ export function BulkPriceEditDialog({
             <Label>
               <span className="text-text-tertiary">{t("step2")}</span>
             </Label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid max-w-2xl grid-cols-2 gap-2 sm:grid-cols-4">
               <ToggleButton selected={mode === "absolute"} onClick={() => setMode("absolute")}>
                 {t("modeAbsolute")}
               </ToggleButton>
@@ -329,23 +329,23 @@ export function BulkPriceEditDialog({
               <div className="max-h-80 overflow-auto rounded-xl border border-border-subtle">
                 <table className="w-full table-fixed text-sm">
                   <colgroup>
-                    <col className="w-[34%]" />
-                    <col className="w-[16%]" />
                     <col className="w-[30%]" />
+                    <col className="w-[22%]" />
+                    <col className="w-[28%]" />
                     <col className="w-[20%]" />
                   </colgroup>
                   <thead className="sticky top-0 bg-bg-surface text-center text-xs text-text-tertiary">
                     <tr className="border-b border-border-subtle">
-                      <th className="px-3 py-2 font-medium">{t("colProduct")}</th>
-                      <th className="px-3 py-2 font-medium">{t("colCurrent")}</th>
-                      <th className="px-3 py-2 font-medium">{t("colNew")}</th>
-                      <th className="px-3 py-2 font-medium">{t("colChannels")}</th>
+                      <th className="px-6 py-2 font-medium">{t("colProduct")}</th>
+                      <th className="px-6 py-2 font-medium">{t("colCurrent")}</th>
+                      <th className="px-6 py-2 font-medium">{t("colNew")}</th>
+                      <th className="px-6 py-2 font-medium">{t("colChannels")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {previews.map((p) => (
                       <tr key={p.product.id} className="border-b border-border-subtle last:border-0">
-                        <td className="px-3 py-2 text-text-primary">
+                        <td className="px-6 py-2 text-text-primary">
                           <div className="truncate" title={p.product.name}>
                             {p.product.name}
                           </div>
@@ -353,11 +353,11 @@ export function BulkPriceEditDialog({
                             {p.product.sku}
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-center font-mono text-text-tertiary">
+                        <td className="whitespace-nowrap px-6 py-2 text-center font-mono text-text-tertiary">
                           {field === "price" ? formatCurrency(p.oldPrice) : "—"}
                         </td>
                         <td
-                          className={`whitespace-nowrap px-3 py-2 text-center font-mono ${
+                          className={`whitespace-nowrap px-6 py-2 text-center font-mono ${
                             mode !== "custom" && p.diff < 0
                               ? "text-state-error"
                               : mode !== "custom" && p.diff > 0
@@ -391,7 +391,7 @@ export function BulkPriceEditDialog({
                             </div>
                           )}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-6 py-2">
                           <div className="flex flex-wrap justify-center gap-1">
                             {p.affectedChannels.length === 0 ? (
                               <span className="text-[11px] text-text-tertiary">—</span>
