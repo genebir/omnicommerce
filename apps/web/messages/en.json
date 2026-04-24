@@ -36,6 +36,8 @@
     "collapse": "Collapse",
     "expandSidebar": "Expand sidebar",
     "collapseSidebar": "Collapse sidebar",
+    "badgePendingMatches": "{count} pending matches",
+    "badgeLowStock": "{count} low-stock items",
     "adminSettings": "Admin Settings"
   },
   "topbar": {

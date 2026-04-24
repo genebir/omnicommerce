@@ -19,11 +19,20 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLowStock, usePendingMatches } from "@/lib/hooks";
 
 interface NavItem {
   href: string;
   labelKey: string;
   icon: LucideIcon;
+}
+
+type BadgeTone = "warn" | "error";
+
+interface NavBadge {
+  count: number;
+  tone: BadgeTone;
+  ariaLabel: string;
 }
 
 const navItems: NavItem[] = [
@@ -50,6 +59,32 @@ interface SidebarProps {
 export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const t = useTranslations("nav");
+
+  // 인증 후에만 의미 있는 카운트 — 미인증 상태에선 비어있어 안전.
+  const { data: pendingMatches } = usePendingMatches();
+  const { data: lowStock } = useLowStock(10, 100);
+
+  const pendingCount = pendingMatches?.length ?? 0;
+  const lowStockCount = lowStock?.length ?? 0;
+
+  const badgesByHref: Record<string, NavBadge | undefined> = {
+    "/products":
+      pendingCount > 0
+        ? {
+            count: pendingCount,
+            tone: "warn",
+            ariaLabel: t("badgePendingMatches", { count: pendingCount }),
+          }
+        : undefined,
+    "/inventory":
+      lowStockCount > 0
+        ? {
+            count: lowStockCount,
+            tone: "error",
+            ariaLabel: t("badgeLowStock", { count: lowStockCount }),
+          }
+        : undefined,
+  };
 
   return (
     <>
@@ -100,6 +135,8 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Side
               const isActive =
                 pathname === item.href || pathname.startsWith(`${item.href}/`);
               const label = t(item.labelKey);
+              const badge = badgesByHref[item.href];
+              const showLabel = !collapsed || mobileOpen;
               return (
                 <li key={item.href}>
                   <Link
@@ -116,8 +153,37 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Side
                     {isActive && (
                       <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-accent-iris" />
                     )}
-                    <item.icon className="size-5 shrink-0" />
-                    {(!collapsed || mobileOpen) && <span>{label}</span>}
+                    <span className="relative shrink-0">
+                      <item.icon className="size-5" />
+                      {/* 접힌 상태: 아이콘 우상단에 점만 (숫자 없음) */}
+                      {badge && !showLabel && (
+                        <span
+                          className={cn(
+                            "absolute -right-0.5 -top-0.5 size-2 rounded-full ring-2 ring-bg-sidebar",
+                            badge.tone === "error" ? "bg-state-error" : "bg-state-warn",
+                          )}
+                          aria-label={badge.ariaLabel}
+                        />
+                      )}
+                    </span>
+                    {showLabel && (
+                      <>
+                        <span className="flex-1">{label}</span>
+                        {badge && (
+                          <span
+                            className={cn(
+                              "rounded-full px-1.5 py-0.5 font-mono text-[10px] font-bold",
+                              badge.tone === "error"
+                                ? "bg-state-error/15 text-state-error"
+                                : "bg-state-warn/15 text-state-warn",
+                            )}
+                            aria-label={badge.ariaLabel}
+                          >
+                            {badge.count > 99 ? "99+" : badge.count}
+                          </span>
+                        )}
+                      </>
+                    )}
                   </Link>
                 </li>
               );

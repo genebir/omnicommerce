@@ -36,6 +36,8 @@
     "collapse": "접기",
     "expandSidebar": "사이드바 펼치기",
     "collapseSidebar": "사이드바 접기",
+    "badgePendingMatches": "검토 대기 {count}건",
+    "badgeLowStock": "재고 부족 {count}건",
     "adminSettings": "관리자 설정"
   },
   "topbar": {
