@@ -155,6 +155,25 @@
     "publishTo": "Publish to Channels",
     "publishToDesc": "The product will be published to selected channels upon creation."
   },
+  "matching": {
+    "title": "Review Channel Matches",
+    "loadError": "Could not load match candidates",
+    "emptyTitle": "No pending matches",
+    "emptyHint": "Auto-match results will appear here when new channel products are imported.",
+    "guideTitle": "{count} item(s) awaiting your review",
+    "guideDesc": "Confirm whether each channel product is the same as the suggested master. \"Confirm\" links them; \"Split\" creates a new master.",
+    "autoMatched": "Auto-matched product",
+    "matchScore": "Score {score}",
+    "confirmCurrent": "Confirm",
+    "declineAction": "Split into new product",
+    "declineTitle": "Split into new product",
+    "declineConfirm": "This will create a new master product for the channel item. You can re-link it later from this page.",
+    "otherCandidates": "Other candidates",
+    "pickThis": "Use this",
+    "viewOnChannel": "View on channel",
+    "confirmSuccess": "Match confirmed",
+    "declineSuccess": "Split into a new product"
+  },
   "orders": {
     "title": "Orders",
     "syncOrders": "Sync Orders",

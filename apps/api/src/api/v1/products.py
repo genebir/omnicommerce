@@ -466,3 +466,192 @@ async def delete_product_image(product_id: uuid.UUID, image_id: uuid.UUID, sessi
         raise HTTPException(status_code=404, detail="이미지를 찾을 수 없습니다")
     await session.delete(image)
     await session.commit()
+
+
+# ===== 채널 상품 매칭 (검토 + 확정/거부) =====
+
+
+class MatchCandidateInfo(BaseModel):
+    product_id: uuid.UUID
+    name: str
+    sku: str
+    price: float
+    score: int
+
+
+class PendingMatchItem(BaseModel):
+    listing_id: uuid.UUID
+    channel_type: str
+    external_id: str
+    external_url: str | None
+    current_match: MatchCandidateInfo  # 자동 매칭으로 임시 묶인 마스터
+    candidates: list[MatchCandidateInfo]  # 다른 후보들 (score 내림차순)
+
+
+class MatchConfirmRequest(BaseModel):
+    product_id: uuid.UUID  # 어느 마스터로 확정할지
+
+
+@router.get("/match/pending", response_model=ApiResponse[list[PendingMatchItem]])
+async def list_pending_matches(session: SessionDep, current_user: CurrentUserDep):
+    """매칭 검토 대기 listing 목록 + 다른 후보 추천."""
+    from src.services.matching_service import (
+        CandidateProduct,
+        MatchInput,
+        rank_candidates,
+    )
+
+    # PENDING_MATCH listing들
+    pending_q = (
+        select(ChannelListing)
+        .join(Product, ChannelListing.product_id == Product.id)
+        .where(
+            ChannelListing.match_status == "PENDING_MATCH",
+            ChannelListing.deleted_at.is_(None),
+            Product.user_id == current_user.id,
+            Product.deleted_at.is_(None),
+        )
+    )
+    pending_listings = list((await session.execute(pending_q)).scalars().all())
+
+    if not pending_listings:
+        return ApiResponse(data=[])
+
+    # 사용자의 모든 product (후보 풀)
+    all_products = list(
+        (
+            await session.execute(
+                select(Product).where(
+                    Product.user_id == current_user.id,
+                    Product.deleted_at.is_(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    product_pool = [
+        CandidateProduct(product_id=str(p.id), name=p.name, sku=p.sku, price=float(p.price)) for p in all_products
+    ]
+    product_by_id = {str(p.id): p for p in all_products}
+
+    items: list[PendingMatchItem] = []
+    for listing in pending_listings:
+        current_p = product_by_id.get(str(listing.product_id))
+        if current_p is None:
+            continue
+        # listing의 비교 기준은 listing이 가리키는 product의 이름·가격을 그대로 쓰지 않고,
+        # raw_payload(없을 수 있음) 또는 product 정보를 사용. raw 없으면 product 정보로.
+        # cafe24 raw에 product_name/price 있는 경우 우선
+        raw = listing.raw_payload or {}
+        item_name = raw.get("product_name") or current_p.name
+        item_sku = raw.get("product_code") or current_p.sku
+        item_price = raw.get("price") or float(current_p.price)
+        try:
+            item_price_dec = float(item_price)
+        except (TypeError, ValueError):
+            item_price_dec = float(current_p.price)
+
+        # 자기 자신(현재 가리키는 product) 제외하고 다른 후보 추천
+        other_pool = [c for c in product_pool if c.product_id != str(current_p.id)]
+        ranked = rank_candidates(
+            MatchInput(name=item_name, sku=item_sku, price=item_price_dec),
+            other_pool,
+            top_k=5,
+        )
+        items.append(
+            PendingMatchItem(
+                listing_id=listing.id,
+                channel_type=listing.channel_type,
+                external_id=listing.external_id,
+                external_url=listing.external_url,
+                current_match=MatchCandidateInfo(
+                    product_id=current_p.id,
+                    name=current_p.name,
+                    sku=current_p.sku,
+                    price=float(current_p.price),
+                    score=listing.match_score or 0,
+                ),
+                candidates=[
+                    MatchCandidateInfo(
+                        product_id=uuid.UUID(c.product_id),
+                        name=c.product_name,
+                        sku=c.product_sku,
+                        price=c.product_price,
+                        score=c.score,
+                    )
+                    for c in ranked
+                ],
+            )
+        )
+
+    return ApiResponse(data=items)
+
+
+@router.post("/match/{listing_id}/confirm", response_model=ApiResponse[dict])
+async def confirm_match(
+    listing_id: uuid.UUID,
+    body: MatchConfirmRequest,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+):
+    """검토 대기 listing을 사용자가 선택한 마스터로 확정."""
+    listing = await session.get(ChannelListing, listing_id)
+    if not listing or listing.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="listing을 찾을 수 없습니다")
+
+    # 권한 검증: 새 product가 사용자 소유여야 함
+    target_product = await session.get(Product, body.product_id)
+    if not target_product or target_product.user_id != current_user.id or target_product.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="대상 상품을 찾을 수 없습니다")
+
+    listing.product_id = body.product_id
+    listing.match_status = "CONFIRMED"
+    listing.match_score = 100
+    await session.commit()
+    return ApiResponse(data={"listing_id": str(listing.id), "product_id": str(body.product_id)})
+
+
+@router.post("/match/{listing_id}/decline", response_model=ApiResponse[dict])
+async def decline_match(
+    listing_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+):
+    """자동 매칭을 거부 — 새 마스터를 생성해 listing을 거기에 묶는다.
+
+    새 마스터의 이름·가격은 raw_payload(있으면) 또는 현재 가리키던 마스터에서 복사.
+    """
+    listing = await session.get(ChannelListing, listing_id)
+    if not listing or listing.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="listing을 찾을 수 없습니다")
+
+    current_p = await session.get(Product, listing.product_id)
+    if not current_p or current_p.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="현재 마스터 상품을 찾을 수 없습니다")
+
+    raw = listing.raw_payload or {}
+    name = (raw.get("product_name") or current_p.name)[:500]
+    sku_base = raw.get("product_code") or current_p.sku
+    # SKU 충돌 회피 — 채널 코드 prefix 추가
+    new_sku = f"{listing.channel_type}-{sku_base}"[:100]
+    try:
+        price = float(raw.get("price") or current_p.price)
+    except (TypeError, ValueError):
+        price = float(current_p.price)
+
+    new_product = Product(
+        user_id=current_user.id,
+        sku=new_sku,
+        name=name,
+        price=price,
+        status=current_p.status,
+    )
+    session.add(new_product)
+    await session.flush()
+
+    listing.product_id = new_product.id
+    listing.match_status = "CONFIRMED"
+    listing.match_score = 100
+    await session.commit()
+    return ApiResponse(data={"listing_id": str(listing.id), "new_product_id": str(new_product.id)})

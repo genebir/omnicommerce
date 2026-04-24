@@ -155,6 +155,25 @@
     "publishTo": "채널 등록",
     "publishToDesc": "상품 등록 시 선택한 채널에 함께 게시됩니다."
   },
+  "matching": {
+    "title": "채널 상품 매칭 검토",
+    "loadError": "매칭 후보를 불러올 수 없습니다",
+    "emptyTitle": "검토 대기 중인 매칭이 없습니다",
+    "emptyHint": "새 채널 상품을 가져오면 자동 매칭 결과가 여기에 나타납니다.",
+    "guideTitle": "{count}건이 검토를 기다리고 있어요",
+    "guideDesc": "각 채널 상품이 어떤 마스터 상품과 같은 것인지 확인해 주세요. \"이대로 확정\"을 누르면 묶이고, \"분리\"를 누르면 별도 상품으로 새로 등록됩니다.",
+    "autoMatched": "자동 매칭된 상품",
+    "matchScore": "신뢰도 {score}",
+    "confirmCurrent": "이대로 확정",
+    "declineAction": "분리하여 새로 등록",
+    "declineTitle": "분리하여 새로 등록",
+    "declineConfirm": "이 채널 상품을 별도의 마스터 상품으로 새로 만듭니다. 나중에 \"매칭 검토\"에서 다시 묶을 수 있습니다.",
+    "otherCandidates": "다른 후보",
+    "pickThis": "이 상품으로 묶기",
+    "viewOnChannel": "채널에서 보기",
+    "confirmSuccess": "매칭이 확정되었습니다",
+    "declineSuccess": "별도 상품으로 분리되었습니다"
+  },
   "orders": {
     "title": "주문",
     "syncOrders": "주문 동기화",

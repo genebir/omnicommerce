@@ -21,6 +21,7 @@ dependencies = [
     "aiolimiter>=1.2.1",
     "redis[hiredis]>=5.0.0",
     "arq>=0.28.0",
+    "rapidfuzz>=3.14.5",
 ]
 
 [project.optional-dependencies]

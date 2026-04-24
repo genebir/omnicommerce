@@ -410,7 +410,7 @@ async def import_products(
                             skipped += 1
                             continue
 
-                        # 동일 SKU의 상품이 있으면 새로 만들지 않고 채널 listing만 연결
+                        # 1) SKU 정확 일치 우선 — 즉시 마스터 묶음 (CONFIRMED, score=100)
                         existing_product = (
                             await session.execute(
                                 select(Product).where(
@@ -421,27 +421,77 @@ async def import_products(
                             )
                         ).scalar_one_or_none()
 
+                        match_status = "CONFIRMED"
+                        match_score: int | None = 100
+
                         if existing_product:
                             product_id = existing_product.id
-                            # 상품 정보 최신화 (이름·가격이 채널에서 다를 수 있음)
                             existing_product.name = item.name[:500]
                             existing_product.price = float(item.price)
                             if item.description:
                                 existing_product.description = item.description
                             existing_product.status = item.status
                         else:
-                            new_product = Product(
-                                user_id=current_user.id,
-                                sku=item.sku[:100],  # DB 컬럼 길이 보호
-                                name=item.name[:500],
-                                price=float(item.price),
-                                cost_price=float(item.cost_price) if getattr(item, "cost_price", None) else None,
-                                description=item.description,
-                                status=item.status,
+                            # 2) SKU 매칭 실패 → 이름·가격 유사도로 후보 추천
+                            from src.services.matching_service import (
+                                CandidateProduct,
+                                MatchInput,
+                                classify_match_status,
+                                rank_candidates,
                             )
-                            session.add(new_product)
-                            await session.flush()
-                            product_id = new_product.id
+
+                            other_products = (
+                                (
+                                    await session.execute(
+                                        select(Product).where(
+                                            Product.user_id == current_user.id,
+                                            Product.deleted_at.is_(None),
+                                        )
+                                    )
+                                )
+                                .scalars()
+                                .all()
+                            )
+                            ranked = rank_candidates(
+                                MatchInput(name=item.name, sku=item.sku, price=item.price),
+                                [
+                                    CandidateProduct(
+                                        product_id=str(p.id),
+                                        name=p.name,
+                                        sku=p.sku,
+                                        price=float(p.price),
+                                    )
+                                    for p in other_products
+                                ],
+                            )
+                            top = ranked[0] if ranked else None
+                            decision = classify_match_status(top.score if top else 0)
+
+                            if decision == "CONFIRMED" and top:
+                                product_id = uuid.UUID(top.product_id)
+                                match_status = "CONFIRMED"
+                                match_score = top.score
+                            elif decision == "PENDING_MATCH" and top:
+                                # 검토 대기 — listing은 마스터 후보를 임시로 가리키되 사용자 확정 전까지 PENDING_MATCH
+                                product_id = uuid.UUID(top.product_id)
+                                match_status = "PENDING_MATCH"
+                                match_score = top.score
+                            else:
+                                # 신규 마스터 생성
+                                new_product = Product(
+                                    user_id=current_user.id,
+                                    sku=item.sku[:100],
+                                    name=item.name[:500],
+                                    price=float(item.price),
+                                    cost_price=float(item.cost_price) if getattr(item, "cost_price", None) else None,
+                                    description=item.description,
+                                    status=item.status,
+                                )
+                                session.add(new_product)
+                                await session.flush()
+                                product_id = new_product.id
+                                match_status = "CONFIRMED"
+                                match_score = 100  # 새로 만든 마스터는 자기 자신과 100% 일치
 
                         listing = ChannelListing(
                             product_id=product_id,
@@ -450,6 +500,8 @@ async def import_products(
                             external_url=getattr(item, "external_url", None),
                             sync_status="SYNCED",
                             last_synced_at=now(),
+                            match_status=match_status,
+                            match_score=match_score,
                         )
                         session.add(listing)
 

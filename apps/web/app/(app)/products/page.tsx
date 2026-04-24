@@ -2,15 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Package, Plus, Download } from "lucide-react";
+import { Package, Plus, Download, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ProductsTable } from "@/features/products/ProductsTable";
 import { ImportProductsModal } from "@/features/channels/ImportProductsModal";
+import { usePendingMatches } from "@/lib/hooks";
 
 export default function ProductsPage() {
   const t = useTranslations("products");
   const tc = useTranslations("channels");
+  const tm = useTranslations("matching");
   const [importOpen, setImportOpen] = useState(false);
+  const { data: pendingMatches } = usePendingMatches();
+  const pendingCount = pendingMatches?.length ?? 0;
 
   return (
     <div>
@@ -22,6 +26,15 @@ export default function ProductsPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          {pendingCount > 0 && (
+            <Link
+              href="/products/matching"
+              className="flex items-center gap-2 rounded-xl border border-state-warn/30 bg-state-warn/10 px-4 py-2.5 text-sm font-medium text-state-warn transition-colors hover:bg-state-warn/15"
+            >
+              <Sparkles className="size-4" />
+              {tm("guideTitle", { count: pendingCount })}
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => setImportOpen(true)}
