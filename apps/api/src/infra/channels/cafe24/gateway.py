@@ -55,12 +55,20 @@ class Cafe24Gateway:
         return ProductPage(items=items, next_cursor=next_cursor, total=data.get("count"))
 
     def _build_product_payload(self, product: object) -> dict:
-        return {
-            "product_name": getattr(product, "name", "") or "",
-            "selling_price": str(getattr(product, "price", 0) or 0),
-            "supply_product_name": getattr(product, "sku", "") or "",
-            "summary_description": getattr(product, "description", "") or "",
+        price_int = int(float(getattr(product, "price", 0) or 0))
+        cost_price = getattr(product, "cost_price", None)
+        supply_price_int = int(float(cost_price)) if cost_price else price_int
+        payload: dict = {
+            "product_name": (getattr(product, "name", "") or "")[:250],
+            "price": str(price_int),
+            "supply_price": str(supply_price_int),
+            "display": "T",
+            "selling": "T",
         }
+        description = getattr(product, "description", None)
+        if description:
+            payload["summary_description"] = description[:255]
+        return payload
 
     async def upsert_product(self, product: object) -> ExternalId:
         product_data = {"request": self._build_product_payload(product)}

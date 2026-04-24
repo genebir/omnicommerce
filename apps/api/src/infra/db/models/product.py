@@ -19,7 +19,7 @@ class Product(BaseModel):
     price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     cost_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     category_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="INACTIVE")
     raw_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     images: Mapped[list["ProductImage"]] = relationship(back_populates="product", cascade="all, delete-orphan")

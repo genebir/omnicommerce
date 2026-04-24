@@ -140,8 +140,19 @@ async def create_product(body: ProductCreate, session: SessionDep, current_user:
 
     if body.publish_to:
         await _publish_to_channels(session, product, current_user.id, body.publish_to)
+        product = await _reload_with_listings(session, product.id)
 
     return ApiResponse(data=product)
+
+
+async def _reload_with_listings(session, product_id: uuid.UUID) -> Product:
+    result = await session.execute(
+        select(Product)
+        .options(selectinload(Product.channel_listings))
+        .where(Product.id == product_id)
+        .execution_options(populate_existing=True)
+    )
+    return result.scalar_one()
 
 
 async def _sync_update_to_channels(session, product: Product, user_id: uuid.UUID) -> None:
@@ -322,10 +333,10 @@ async def _publish_to_channels(session, product: Product, user_id: uuid.UUID, ch
         external_url = None
         last_error = None
 
+        gateway = None
         try:
-            gateway = create_gateway(channel)
+            gateway = create_gateway(channel, session)  # 세션 전달 → 토큰 갱신 시 DB 자동 저장
             ext = await gateway.upsert_product(product)
-            await gateway.close()
             external_id = ext.id
             external_url = ext.url
             sync_status = "SYNCED"
@@ -333,6 +344,10 @@ async def _publish_to_channels(session, product: Product, user_id: uuid.UUID, ch
         except Exception as exc:
             last_error = str(exc)
             await logger.awarning("채널 등록 실패", channel_type=channel_type, error=last_error)
+        finally:
+            if gateway:
+                with contextlib.suppress(Exception):
+                    await gateway.close()
 
         listing = ChannelListing(
             product_id=product.id,
@@ -375,6 +390,7 @@ async def update_product(product_id: uuid.UUID, body: ProductUpdate, session: Se
         raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다")
     product = await service.update(product_id, **updates)
     await _sync_update_to_channels(session, product, current_user.id)
+    product = await _reload_with_listings(session, product.id)
     return ApiResponse(data=product)
 
 
