@@ -255,7 +255,7 @@ async def _sync_inventory_to_channels(
         gateway = None
         try:
             gateway = create_gateway(ch, session)
-            await gateway.update_inventory(inv.sku, inv.total_quantity)
+            await gateway.update_inventory(inv.sku, inv.total_quantity, external_id=listing.external_id)
             listing.last_synced_at = now()
             results.append({"channel_type": listing.channel_type, "success": True})
         except AuthenticationError:

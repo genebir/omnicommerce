@@ -71,7 +71,7 @@ class NaverGateway:
     async def delete_product(self, external_id: str) -> None:
         await self._client.delete(f"/v2/products/{external_id}")
 
-    async def update_inventory(self, sku: str, qty: int) -> None:
+    async def update_inventory(self, sku: str, qty: int, external_id: str | None = None) -> None:  # noqa: ARG002
         await self._client.put(
             "/v2/products/stock",
             json={"stockQuantity": qty, "modelName": sku},

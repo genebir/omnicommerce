@@ -71,7 +71,7 @@ class CoupangGateway:
         path = f"/v2/providers/seller_api/apis/api/v1/marketplace/seller-products/{external_id}"
         await self._client.delete(path)
 
-    async def update_inventory(self, sku: str, qty: int) -> None:
+    async def update_inventory(self, sku: str, qty: int, external_id: str | None = None) -> None:  # noqa: ARG002
         path = "/v2/providers/seller_api/apis/api/v1/marketplace/vendor-items/quantities"
         await self._client.put(
             path,

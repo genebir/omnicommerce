@@ -58,8 +58,18 @@ async def test_contract():
         )
 
     def mock_update_inventory():
-        respx.put(f"{_BASE}/admin/products/inventories").mock(
-            return_value=httpx.Response(200, json={"inventory": {"result": "success"}})
+        # cafe24 재고 갱신은 3단계: variants 조회 → product use_inventory PUT → variant inventories PUT
+        respx.get(f"{_BASE}/admin/products/999/variants").mock(
+            return_value=httpx.Response(
+                200,
+                json={"variants": [{"variant_code": "TEST-SKU000A", "quantity": 0, "use_inventory": "F"}]},
+            )
+        )
+        respx.put(f"{_BASE}/admin/products/999").mock(
+            return_value=httpx.Response(200, json={"product": {"use_inventory": "T"}})
+        )
+        respx.put(f"{_BASE}/admin/products/999/variants/TEST-SKU000A/inventories").mock(
+            return_value=httpx.Response(200, json={"inventory": {"quantity": 50}})
         )
 
     def mock_fetch_orders(count=2):

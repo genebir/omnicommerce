@@ -94,7 +94,8 @@ async def _test_update_inventory_succeeds(gateway, mock_update_inventory):
     """재고 갱신이 예외 없이 완료되는지 검증."""
     mock_update_inventory()
 
-    await gateway.update_inventory(sku="TEST-SKU", qty=50)
+    # cafe24는 external_id(product_no)가 필요. 다른 게이트웨이는 무시함.
+    await gateway.update_inventory(sku="TEST-SKU", qty=50, external_id="999")
 
 
 async def _test_fetch_orders_returns_list(gateway, mock_fetch_orders):

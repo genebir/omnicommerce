@@ -91,10 +91,45 @@ class Cafe24Gateway:
     async def delete_product(self, external_id: str) -> None:
         await self._client.delete(f"/admin/products/{external_id}")
 
-    async def update_inventory(self, sku: str, qty: int) -> None:
+    async def update_inventory(self, sku: str, qty: int, external_id: str | None = None) -> None:
+        """cafe24 재고 갱신.
+
+        cafe24의 재고 추적 모델:
+        1. 상품 자체에 `use_inventory: T`가 있어야 재고 변경이 반영됨
+        2. 옵션 없는 단순 상품도 자동으로 variant 1개가 생성됨 (variant_code 별개)
+        3. SKU(product_code) ≠ variant_code → product_no로 variants를 조회해 variant_code 획득
+
+        호출자가 external_id(product_no)를 전달해야 함. 누락이면 sku 매칭으로 fallback.
+        """
+        # 1) variant_code 확보
+        variant_code: str | None = None
+        product_no: str | None = external_id
+        if product_no:
+            variants_data = await self._client.get(f"/admin/products/{product_no}/variants")
+            variants = variants_data.get("variants") or []
+            # 단순 상품은 1개만, 옵션 상품은 product_code(SKU) 일치하는 것 우선
+            for v in variants:
+                if (v.get("custom_variant_code") or v.get("variant_code", "")).startswith(sku):
+                    variant_code = v["variant_code"]
+                    break
+            if not variant_code and variants:
+                variant_code = variants[0]["variant_code"]
+
+        if not product_no or not variant_code:
+            raise ValueError(
+                f"cafe24 재고 갱신 실패 — product_no/variant_code 미확보 (sku={sku}, external_id={external_id})"
+            )
+
+        # 2) 상품의 use_inventory를 T로 보장 (이미 T면 cafe24가 idempotent하게 처리)
         await self._client.put(
-            "/admin/products/inventories",
-            json={"request": {"variants": [{"variant_code": sku, "quantity": qty}]}},
+            f"/admin/products/{product_no}",
+            json={"request": {"use_inventory": "T"}},
+        )
+
+        # 3) variant inventories에 quantity 푸시
+        await self._client.put(
+            f"/admin/products/{product_no}/variants/{variant_code}/inventories",
+            json={"request": {"use_inventory": "T", "quantity": qty}},
         )
 
     async def fetch_orders(self, since: datetime, until: datetime | None = None) -> list:
