@@ -280,7 +280,7 @@ function ToggleButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+      className={`flex-1 cursor-pointer whitespace-nowrap rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
         selected
           ? "border-accent-iris bg-accent-iris/10 text-accent-iris"
           : "border-border-subtle bg-bg-surface text-text-secondary hover:bg-bg-surface-2"

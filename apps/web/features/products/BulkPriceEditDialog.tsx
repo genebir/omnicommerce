@@ -329,10 +329,10 @@ export function BulkPriceEditDialog({
               <div className="max-h-80 overflow-auto rounded-xl border border-border-subtle">
                 <table className="w-full table-fixed text-sm">
                   <colgroup>
-                    <col className="w-[40%]" />
-                    <col className="w-[18%]" />
-                    <col className="w-[24%]" />
-                    <col className="w-[18%]" />
+                    <col className="w-[34%]" />
+                    <col className="w-[16%]" />
+                    <col className="w-[30%]" />
+                    <col className="w-[20%]" />
                   </colgroup>
                   <thead className="sticky top-0 bg-bg-surface text-left text-xs text-text-tertiary">
                     <tr className="border-b border-border-subtle">
@@ -377,7 +377,7 @@ export function BulkPriceEditDialog({
                                 })
                               }
                               placeholder={String(p.oldPrice)}
-                              className="ml-auto w-full max-w-32 text-right font-mono"
+                              className="ml-auto block w-full text-right font-mono"
                             />
                           ) : (
                             <div>
@@ -437,7 +437,7 @@ function ToggleButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+      className={`flex-1 cursor-pointer whitespace-nowrap rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
         selected
           ? "border-accent-iris bg-accent-iris/10 text-accent-iris"
           : "border-border-subtle bg-bg-surface text-text-secondary hover:bg-bg-surface-2"
