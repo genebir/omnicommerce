@@ -21,7 +21,23 @@ export default function ChannelsPage() {
       queryClient.invalidateQueries({ queryKey: ["channels"] });
       router.replace("/channels");
     } else if (cafe24Status === "error") {
-      toast.error(t("connectError"));
+      const reason = searchParams.get("reason");
+      const desc = searchParams.get("desc");
+      if (reason === "invalid_scope") {
+        toast.error(t("connectErrorInvalidScope"), {
+          description: t("connectErrorInvalidScopeDesc"),
+          duration: 12000,
+        });
+      } else if (reason && desc) {
+        toast.error(`${t("connectError")} (${reason})`, {
+          description: desc,
+          duration: 8000,
+        });
+      } else if (reason) {
+        toast.error(`${t("connectError")} (${reason})`);
+      } else {
+        toast.error(t("connectError"));
+      }
       router.replace("/channels");
     }
   }, [searchParams, router, queryClient, t]);

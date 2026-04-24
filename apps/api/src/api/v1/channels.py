@@ -173,19 +173,42 @@ async def cafe24_oauth_url(
 
 @router.get("/cafe24/oauth/callback")
 async def cafe24_oauth_callback(
-    code: str = Query(...),
-    state: str = Query(...),
-    session: SessionDep = None,
+    session: SessionDep,
+    code: str | None = Query(None),
+    state: str | None = Query(None),
+    error: str | None = Query(None),
+    error_description: str | None = Query(None),
 ):
-    """Cafe24 OAuth 콜백 — 인가코드를 토큰으로 교환 후 채널 저장."""
-    error_url = f"{settings.FRONTEND_URL}/channels?cafe24=error"
+    """Cafe24 OAuth 콜백 — 인가코드를 토큰으로 교환 후 채널 저장.
+
+    실패 케이스:
+    - cafe24가 ?error=invalid_scope&error_description=... 같이 보내는 경우
+      (사용자 거부 / 앱 권한 미설정 / 잘못된 scope)
+    - state 위변조
+    - 토큰 교환 실패
+    모두 프론트의 /channels?cafe24=error&reason=... 으로 redirect.
+    """
+    from urllib.parse import quote
+
+    def _err_redirect(reason: str, desc: str | None = None) -> RedirectResponse:
+        url = f"{settings.FRONTEND_URL}/channels?cafe24=error&reason={quote(reason)}"
+        if desc:
+            url += f"&desc={quote(desc)}"
+        return RedirectResponse(url)
+
+    if error:
+        await logger.awarning("cafe24 OAuth 거부/실패", error=error, desc=error_description)
+        return _err_redirect(error, error_description)
+
+    if not code or not state:
+        return _err_redirect("missing_code")
 
     try:
         state_data = _parse_oauth_state(state)
         user_id = uuid.UUID(state_data["user_id"])
         mall_id: str = state_data["mall_id"]
     except Exception:
-        return RedirectResponse(error_url)
+        return _err_redirect("invalid_state")
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.post(
@@ -201,7 +224,7 @@ async def cafe24_oauth_callback(
 
     if resp.status_code != 200:
         await logger.awarning("cafe24 토큰 교환 실패", status=resp.status_code, body=resp.text[:200])
-        return RedirectResponse(error_url)
+        return _err_redirect("token_exchange_failed", resp.text[:200])
 
     token_data = resp.json()
     credentials = {

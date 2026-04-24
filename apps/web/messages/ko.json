@@ -258,6 +258,8 @@
     "verify": "연결 확인",
     "complete": "완료",
     "connectError": "채널 연결에 실패했습니다",
+    "connectErrorInvalidScope": "Cafe24가 요청한 권한을 거부했습니다",
+    "connectErrorInvalidScopeDesc": "개발자센터(developers.cafe24.com)에서 본인 앱의 권한 설정을 열고 \"개인정보 조회 (mall.read_personal)\"를 활성화한 뒤 다시 시도해 주세요.",
     "disconnect": "해제",
     "disconnectTitle": "채널 연결 해제",
     "disconnectConfirm": "{channel} 연결을 해제하시겠습니까?",

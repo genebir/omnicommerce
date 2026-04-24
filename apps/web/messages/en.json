@@ -258,6 +258,8 @@
     "verify": "Verify Connection",
     "complete": "Complete",
     "connectError": "Failed to connect channel",
+    "connectErrorInvalidScope": "Cafe24 rejected the requested scope",
+    "connectErrorInvalidScopeDesc": "Open your app on developers.cafe24.com, enable the \"Personal info (mall.read_personal)\" permission, then try again.",
     "disconnect": "Disconnect",
     "disconnectTitle": "Disconnect Channel",
     "disconnectConfirm": "Are you sure you want to disconnect {channel}?",
