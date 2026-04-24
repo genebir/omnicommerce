@@ -1,18 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { createColumnHelper } from "@tanstack/react-table";
-import { Warehouse, Loader2, Edit } from "lucide-react";
+import { useMemo, useState } from "react";
+import { type RowSelectionState, createColumnHelper } from "@tanstack/react-table";
+import { Warehouse, Loader2, Edit, Boxes } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { DataTable } from "@/components/patterns";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatNumber } from "@/lib/utils/format";
-import { useInventory, useUpdateInventory } from "@/lib/hooks";
+import {
+  useBulkEditInventory,
+  useInventory,
+  useProducts,
+  useUpdateInventory,
+  type InventoryItem,
+} from "@/lib/hooks";
+import { BulkInventoryEditDialog } from "./BulkInventoryEditDialog";
 
 interface InventoryRow {
   id: string;
@@ -22,17 +30,34 @@ interface InventoryRow {
   available: number;
   allocated: number;
   total: number;
+  // 백엔드 InventoryItem 형태 그대로 보존 (다이얼로그가 그 형태로 받음)
+  raw: InventoryItem;
 }
 
 const columnHelper = createColumnHelper<InventoryRow>();
 
 export function InventoryTable() {
   const t = useTranslations("inventory");
+  const tb = useTranslations("bulkInventory");
   const tc = useTranslations("common");
   const { data, isLoading } = useInventory();
+  const { data: productsPages } = useProducts();
   const updateInventory = useUpdateInventory();
+  const bulkEdit = useBulkEditInventory();
+
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [showBulk, setShowBulk] = useState(false);
   const [editItem, setEditItem] = useState<InventoryRow | null>(null);
   const [editQuantity, setEditQuantity] = useState(0);
+
+  // SKU → 상품명 (다이얼로그 미리보기에 표시)
+  const productNameBySku = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const page of productsPages?.pages ?? []) {
+      for (const p of page.items) map[p.sku] = p.name;
+    }
+    return map;
+  }, [productsPages]);
 
   const rows: InventoryRow[] =
     data?.data?.map((inv) => ({
@@ -43,6 +68,7 @@ export function InventoryTable() {
       available: inv.available,
       allocated: inv.allocated,
       total: inv.total_quantity,
+      raw: inv,
     })) ?? [];
 
   async function handleSaveQuantity() {
@@ -62,34 +88,60 @@ export function InventoryTable() {
   }
 
   const columns = [
+    columnHelper.display({
+      id: "select",
+      size: 40,
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllRowsSelected()}
+          onCheckedChange={(v) => table.toggleAllRowsSelected(!!v)}
+          aria-label={tc("selectAll")}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(v) => row.toggleSelected(!!v)}
+          aria-label={tc("selectRow")}
+        />
+      ),
+    }),
     columnHelper.accessor("sku", {
       header: t("columnSku"),
       size: 140,
-      cell: (info) => (
-        <span className="font-mono text-xs">{info.getValue()}</span>
+      cell: (info) => <span className="font-mono text-xs">{info.getValue()}</span>,
+    }),
+    columnHelper.display({
+      id: "name",
+      header: t("columnProduct"),
+      size: 220,
+      cell: ({ row }) => (
+        <span className="text-text-secondary">
+          {productNameBySku[row.original.sku] ?? "—"}
+        </span>
       ),
     }),
     columnHelper.accessor("warehouse", {
       header: t("columnWarehouse"),
-      size: 120,
+      size: 100,
     }),
     columnHelper.accessor("available", {
       header: t("columnAvailable"),
-      size: 100,
+      size: 90,
       cell: (info) => (
         <span className="font-mono text-state-success">{formatNumber(info.getValue())}</span>
       ),
     }),
     columnHelper.accessor("allocated", {
       header: t("columnAllocated"),
-      size: 100,
+      size: 90,
       cell: (info) => (
         <span className="font-mono text-state-warn">{formatNumber(info.getValue())}</span>
       ),
     }),
     columnHelper.accessor("total", {
       header: t("columnTotal"),
-      size: 100,
+      size: 90,
       cell: (info) => (
         <span className="font-mono font-bold">{formatNumber(info.getValue())}</span>
       ),
@@ -121,14 +173,46 @@ export function InventoryTable() {
     );
   }
 
+  const selectedCount = Object.keys(rowSelection).length;
+  const selectedItems = Object.keys(rowSelection)
+    .map((idx) => rows[Number(idx)]?.raw)
+    .filter(Boolean) as InventoryItem[];
+
   return (
-    <>
+    <div className="space-y-4">
+      {selectedCount > 0 && (
+        <div className="flex items-center gap-3 rounded-xl bg-accent-iris/10 px-4 py-2">
+          <span className="text-sm font-medium text-accent-iris">
+            {tc("selected", { count: selectedCount })}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowBulk(true)}
+            disabled={bulkEdit.isPending}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-accent-iris transition-colors hover:bg-accent-iris/15 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Boxes className="size-3.5" />
+            {tb("bulkAdjust")}
+          </button>
+        </div>
+      )}
+
       <DataTable
         columns={columns}
         data={rows}
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
         emptyIcon={<Warehouse className="size-12" />}
         emptyMessage={t("empty")}
         emptyHint={t("emptyHint")}
+      />
+
+      <BulkInventoryEditDialog
+        open={showBulk}
+        onOpenChange={setShowBulk}
+        selectedItems={selectedItems}
+        productNameBySku={productNameBySku}
+        onApplied={() => setRowSelection({})}
       />
 
       <Dialog
@@ -178,6 +262,6 @@ export function InventoryTable() {
           )}
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

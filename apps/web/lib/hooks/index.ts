@@ -23,7 +23,15 @@ export {
   type RevertBatchResult,
 } from "./use-products";
 export { useOrders, useOrder, useUpdateOrderStatus } from "./use-orders";
-export { useInventory, useUpdateInventory } from "./use-inventory";
+export {
+  useInventory,
+  useUpdateInventory,
+  useBulkEditInventory,
+  type InventoryItem,
+  type BulkInventoryEditRequest,
+  type BulkInventoryItemResult,
+  type BulkInventoryEditResult,
+} from "./use-inventory";
 export {
   useChannelTypes,
   useConnectedChannels,

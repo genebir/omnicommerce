@@ -1,16 +1,24 @@
 """재고 API 엔드포인트."""
 
+import contextlib
 import uuid
+from typing import Annotated, Literal
 
+import structlog
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from src.api.v1.schemas import ApiResponse, PaginatedResponse, PaginationMeta
 from src.core.deps import CurrentUserDep, SessionDep
+from src.infra.db.models.channel import Channel
+from src.infra.db.models.channel_listing import ChannelListing
 from src.infra.db.models.inventory import Inventory
 from src.infra.db.models.product import Product
 from src.services.inventory_service import InventoryService
+from src.utils.clock import now
+
+logger = structlog.stdlib.get_logger()
 
 router = APIRouter(prefix="/inventory")
 
@@ -113,3 +121,159 @@ async def deallocate_inventory(body: AllocateRequest, session: SessionDep):
         return ApiResponse(data=inv)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+# ===== 재고 일괄 조정 =====
+
+
+class BulkInventoryEditRequest(BaseModel):
+    inventory_ids: list[uuid.UUID] = Field(min_length=1, max_length=500)
+    mode: Annotated[Literal["absolute", "inc_amount"], Field()]
+    """absolute: value를 새 total로 / inc_amount: 현재 total에 value 더함(음수=감산)"""
+
+    value: int
+    sync_channels: bool = True
+    channel_types: list[str] = Field(default_factory=list)
+
+
+class ChannelSyncResult(BaseModel):
+    channel_type: str
+    success: bool
+    error: str | None = None
+    requires_reconnect: bool = False
+
+
+class BulkInventoryItemResult(BaseModel):
+    inventory_id: uuid.UUID
+    sku: str
+    old_total: int
+    new_total: int
+    old_available: int
+    new_available: int
+    channel_results: list[ChannelSyncResult] = []
+
+
+class BulkInventoryEditResult(BaseModel):
+    updated_count: int
+    sync_attempted: bool
+    items: list[BulkInventoryItemResult]
+
+
+def _new_total(current: int, mode: str, value: int) -> int:
+    if mode == "absolute":
+        return max(0, value)
+    return max(0, current + value)
+
+
+@router.patch("/bulk", response_model=ApiResponse[BulkInventoryEditResult])
+async def bulk_edit_inventory(body: BulkInventoryEditRequest, session: SessionDep, current_user: CurrentUserDep):
+    """선택된 재고 행의 총수량을 일괄 변경하고 채널에 동기화한다.
+
+    - 모드: absolute(새 수량) / inc_amount(현재에 +-)
+    - 가용수량(available)도 같은 차이만큼 조정 — 음수 방지
+    - sync_channels=True면 각 SKU의 채널 listing에 update_inventory 호출
+    """
+    invs_q = await session.execute(
+        select(Inventory)
+        .join(Product, Inventory.product_id == Product.id)
+        .where(
+            Inventory.id.in_(body.inventory_ids),
+            Inventory.deleted_at.is_(None),
+            Product.user_id == current_user.id,
+            Product.deleted_at.is_(None),
+        )
+    )
+    invs = list(invs_q.scalars().all())
+
+    items: list[BulkInventoryItemResult] = []
+    for inv in invs:
+        old_total = inv.total_quantity
+        old_available = inv.available
+        new_total = _new_total(old_total, body.mode, body.value)
+        diff = new_total - old_total
+
+        if diff != 0:
+            inv.total_quantity = new_total
+            inv.available = max(0, old_available + diff)
+
+        channel_results: list[ChannelSyncResult] = []
+        if body.sync_channels and diff != 0:
+            channel_results = [
+                ChannelSyncResult(**r)
+                for r in await _sync_inventory_to_channels(session, inv, current_user.id, body.channel_types or None)
+            ]
+
+        items.append(
+            BulkInventoryItemResult(
+                inventory_id=inv.id,
+                sku=inv.sku,
+                old_total=old_total,
+                new_total=new_total,
+                old_available=old_available,
+                new_available=inv.available,
+                channel_results=channel_results,
+            )
+        )
+
+    await session.commit()
+    return ApiResponse(
+        data=BulkInventoryEditResult(updated_count=len(items), sync_attempted=body.sync_channels, items=items)
+    )
+
+
+async def _sync_inventory_to_channels(
+    session, inv: Inventory, user_id: uuid.UUID, channel_types: list[str] | None
+) -> list[dict]:
+    """변경된 재고를 채널에 푸시. SKU 기준."""
+    from src.core.exceptions import AuthenticationError, ChannelResourceNotFoundError
+    from src.infra.channels.factory import create_gateway
+
+    listing_q = select(ChannelListing).where(
+        ChannelListing.product_id == inv.product_id,
+        ChannelListing.deleted_at.is_(None),
+    )
+    if channel_types:
+        listing_q = listing_q.where(ChannelListing.channel_type.in_(channel_types))
+    listings = list((await session.execute(listing_q)).scalars().all())
+
+    results: list[dict] = []
+    for listing in listings:
+        ch = (
+            await session.execute(
+                select(Channel).where(
+                    Channel.user_id == user_id,
+                    Channel.channel_type == listing.channel_type,
+                    Channel.deleted_at.is_(None),
+                    Channel.is_active.is_(True),
+                )
+            )
+        ).scalar_one_or_none()
+        if not ch:
+            results.append({"channel_type": listing.channel_type, "success": False, "error": "채널 미연결"})
+            continue
+
+        gateway = None
+        try:
+            gateway = create_gateway(ch, session)
+            await gateway.update_inventory(inv.sku, inv.total_quantity)
+            listing.last_synced_at = now()
+            results.append({"channel_type": listing.channel_type, "success": True})
+        except AuthenticationError:
+            ch.is_active = False
+            results.append(
+                {
+                    "channel_type": listing.channel_type,
+                    "success": False,
+                    "error": "채널 인증 만료",
+                    "requires_reconnect": True,
+                }
+            )
+        except ChannelResourceNotFoundError:
+            results.append({"channel_type": listing.channel_type, "success": False, "error": "채널에 SKU 없음"})
+        except Exception as exc:
+            results.append({"channel_type": listing.channel_type, "success": False, "error": str(exc)})
+        finally:
+            if gateway:
+                with contextlib.suppress(Exception):
+                    await gateway.close()
+    return results

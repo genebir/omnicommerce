@@ -505,6 +505,30 @@ async def import_products(
                         )
                         session.add(listing)
 
+                        # SKU별 Inventory 행이 없으면 자동 생성 (재고 일괄 조정 시 자연스럽게)
+                        from src.infra.db.models.inventory import Inventory
+
+                        existing_inv = (
+                            await session.execute(
+                                select(Inventory).where(
+                                    Inventory.sku == item.sku,
+                                    Inventory.warehouse_id == "default",
+                                    Inventory.deleted_at.is_(None),
+                                )
+                            )
+                        ).scalar_one_or_none()
+                        if not existing_inv:
+                            session.add(
+                                Inventory(
+                                    product_id=product_id,
+                                    sku=item.sku[:100],
+                                    warehouse_id="default",
+                                    total_quantity=0,
+                                    allocated=0,
+                                    available=0,
+                                )
+                            )
+
                     imported += 1
                 except Exception as exc:
                     await logger.awarning(
