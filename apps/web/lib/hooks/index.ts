@@ -7,6 +7,9 @@ export {
   useAddProductImage,
   useDeleteProductImage,
   useBulkEditPrice,
+  useProductPriceHistory,
+  useRecentPriceBatches,
+  useRevertPriceBatch,
   type ChannelListingInfo,
   type ChannelDeleteResult,
   type DeleteProductResult,
@@ -15,6 +18,9 @@ export {
   type BulkPriceEditRequest,
   type BulkPriceProductResult,
   type BulkPriceEditResult,
+  type PriceHistoryItem,
+  type PriceBatchItem,
+  type RevertBatchResult,
 } from "./use-products";
 export { useOrders, useOrder, useUpdateOrderStatus } from "./use-orders";
 export { useInventory, useUpdateInventory } from "./use-inventory";

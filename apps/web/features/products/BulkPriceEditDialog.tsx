@@ -20,6 +20,7 @@ import { formatCurrency } from "@/lib/utils/format";
 import {
   useBulkEditPrice,
   useConnectedChannels,
+  useRevertPriceBatch,
   type BulkPriceField,
   type ChannelListingInfo,
 } from "@/lib/hooks";
@@ -62,6 +63,7 @@ export function BulkPriceEditDialog({
   const tc = useTranslations("common");
   const { data: connectedChannels } = useConnectedChannels();
   const bulkEdit = useBulkEditPrice();
+  const revertBatch = useRevertPriceBatch();
 
   const [field, setField] = useState<Field>("price");
   const [mode, setMode] = useState<Mode>("absolute");
@@ -120,6 +122,16 @@ export function BulkPriceEditDialog({
       }
     }
 
+    // 모든 결과 토스트에 "실행 취소" 액션 첨부 — 5초 동안 1클릭 원복
+    const undo = async () => {
+      try {
+        await revertBatch.mutateAsync(data.batch_id);
+        toast.success(t("undoSuccess"));
+      } catch {
+        toast.error(t("undoError"));
+      }
+    };
+
     if (needsReconnect) {
       toast.error(t("authExpired"), {
         action: { label: t("goToChannels"), onClick: () => (window.location.href = "/channels") },
@@ -129,9 +141,15 @@ export function BulkPriceEditDialog({
       const summary = Array.from(failByChannel.entries())
         .map(([ch, n]) => `${ch} ${n}건`)
         .join(", ");
-      toast.warning(t("partialFailed", { summary, count: data.updated_count }), { duration: 8000 });
+      toast.warning(t("partialFailed", { summary, count: data.updated_count }), {
+        duration: 8000,
+        action: { label: t("undo"), onClick: undo },
+      });
     } else {
-      toast.success(t("applied", { count: data.updated_count }));
+      toast.success(t("applied", { count: data.updated_count }), {
+        duration: 8000,  // 평소 4초보다 길게 — 되돌릴 시간 확보
+        action: { label: t("undo"), onClick: undo },
+      });
     }
 
     onApplied?.();

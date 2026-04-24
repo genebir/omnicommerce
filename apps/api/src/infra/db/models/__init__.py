@@ -5,6 +5,7 @@ from src.infra.db.models.channel import Channel, ChannelType
 from src.infra.db.models.channel_listing import ChannelListing
 from src.infra.db.models.inventory import Inventory
 from src.infra.db.models.order import Order, OrderItem
+from src.infra.db.models.price_history import ProductPriceHistory
 from src.infra.db.models.product import Product, ProductImage, ProductOption
 from src.infra.db.models.user import User
 
@@ -20,5 +21,6 @@ __all__ = [
     "Product",
     "ProductImage",
     "ProductOption",
+    "ProductPriceHistory",
     "User",
 ]

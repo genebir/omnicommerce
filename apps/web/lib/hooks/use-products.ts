@@ -148,6 +148,7 @@ export interface BulkPriceProductResult {
 export interface BulkPriceEditResult {
   updated_count: number;
   sync_attempted: boolean;
+  batch_id: string;
   items: BulkPriceProductResult[];
 }
 
@@ -158,6 +159,73 @@ export function useBulkEditPrice() {
       api.patch<BulkPriceEditResult>("/products/bulk/price", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["price-history"] });
+    },
+  });
+}
+
+// ----- 가격 변경 이력 + 되돌리기 -----
+
+export interface PriceHistoryItem {
+  id: string;
+  product_id: string;
+  field: "price" | "cost_price";
+  old_value: number | null;
+  new_value: number;
+  batch_id: string;
+  change_mode: string | null;
+  change_value: number | null;
+  channel_results: { channel_type: string; success: boolean; error?: string | null }[] | null;
+  reverted_at: string | null;
+  created_at: string | null;
+}
+
+export interface PriceBatchItem {
+  batch_id: string;
+  created_at: string | null;
+  product_count: number;
+  change_mode: string | null;
+  change_value: number | null;
+  field: string;
+  is_reverted: boolean;
+}
+
+export interface RevertBatchResult {
+  batch_id: string;
+  reverted_count: number;
+  new_batch_id: string;
+  items: BulkPriceProductResult[];
+}
+
+export function useProductPriceHistory(productId: string) {
+  return useQuery({
+    queryKey: ["price-history", "product", productId],
+    queryFn: async () => {
+      const res = await api.get<PriceHistoryItem[]>(`/products/${productId}/price-history`);
+      return res.data;
+    },
+    enabled: !!productId,
+  });
+}
+
+export function useRecentPriceBatches(limit = 20) {
+  return useQuery({
+    queryKey: ["price-history", "recent", limit],
+    queryFn: async () => {
+      const res = await api.get<PriceBatchItem[]>(`/products/price-history/recent?limit=${limit}`);
+      return res.data;
+    },
+  });
+}
+
+export function useRevertPriceBatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (batchId: string) =>
+      api.post<RevertBatchResult>(`/products/price-history/${batchId}/revert`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["price-history"] });
     },
   });
 }

@@ -182,7 +182,21 @@
     "applied": "{count}개 상품의 가격이 변경되었습니다",
     "partialFailed": "{count}개 변경 완료. 일부 채널 동기화 실패: {summary}",
     "authExpired": "채널 인증이 만료되어 일부 채널에 적용되지 못했습니다. 채널 페이지에서 재연결해 주세요.",
-    "goToChannels": "채널 페이지로"
+    "goToChannels": "채널 페이지로",
+    "undo": "실행 취소",
+    "undoSuccess": "이전 가격으로 되돌렸습니다",
+    "undoError": "되돌리기에 실패했습니다"
+  },
+  "priceHistory": {
+    "title": "최근 가격 변경 이력",
+    "empty": "아직 가격을 변경한 기록이 없습니다.",
+    "fieldPrice": "판매가",
+    "fieldCostPrice": "단가",
+    "revertBadge": "되돌리기 작업",
+    "revertedBadge": "되돌려짐",
+    "revertAction": "되돌리기",
+    "revertSuccess": "이전 가격으로 되돌렸습니다",
+    "revertError": "되돌리기에 실패했습니다"
   },
   "matching": {
     "title": "채널 상품 매칭 검토",

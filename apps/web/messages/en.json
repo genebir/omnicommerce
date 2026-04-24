@@ -182,7 +182,21 @@
     "applied": "Updated {count} product(s)",
     "partialFailed": "Updated {count}. Some channels failed: {summary}",
     "authExpired": "Channel authentication expired for some channels. Please reconnect.",
-    "goToChannels": "Go to Channels"
+    "goToChannels": "Go to Channels",
+    "undo": "Undo",
+    "undoSuccess": "Reverted to previous price",
+    "undoError": "Failed to undo"
+  },
+  "priceHistory": {
+    "title": "Recent Price Changes",
+    "empty": "No price changes yet.",
+    "fieldPrice": "Price",
+    "fieldCostPrice": "Cost",
+    "revertBadge": "Revert action",
+    "revertedBadge": "Reverted",
+    "revertAction": "Revert",
+    "revertSuccess": "Reverted to previous price",
+    "revertError": "Failed to revert"
   },
   "matching": {
     "title": "Review Channel Matches",

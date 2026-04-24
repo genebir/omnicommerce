@@ -419,6 +419,7 @@ class BulkPriceProductResult(BaseModel):
 class BulkPriceEditResult(BaseModel):
     updated_count: int
     sync_attempted: bool
+    batch_id: uuid.UUID  # 되돌리기·이력 조회 키
     items: list[BulkPriceProductResult]
 
 
@@ -429,7 +430,10 @@ async def bulk_edit_price(body: BulkPriceEditRequest, session: SessionDep, curre
     - 모드 3종: 새 가격 직접 입력 / 금액 +- / 퍼센트 +-
     - sync_channels=True면 변경 후 채널에 푸시 시도, 실패한 채널은 결과에 포함
     - channel_types 빈 배열이면 각 상품에 연결된 모든 채널이 대상
+    - 모든 변경은 같은 batch_id로 history에 기록되어 한 번에 되돌릴 수 있다
     """
+    from src.infra.db.models.price_history import ProductPriceHistory
+
     if body.price is None and body.cost_price is None:
         raise HTTPException(status_code=400, detail="price 또는 cost_price 중 하나는 필요합니다")
 
@@ -442,24 +446,58 @@ async def bulk_edit_price(body: BulkPriceEditRequest, session: SessionDep, curre
     )
     products = list(products_q.scalars().all())
 
+    batch_id = uuid.uuid4()
     items: list[BulkPriceProductResult] = []
+
     for product in products:
         old_price = float(product.price)
         old_cost = float(product.cost_price) if product.cost_price is not None else None
         new_price = _apply_change(old_price, body.price) if body.price else old_price
         new_cost = _apply_change(old_cost, body.cost_price) if body.cost_price else old_cost
 
-        if new_price != old_price:
+        price_changed = new_price != old_price
+        cost_changed = body.cost_price is not None and new_cost != old_cost
+
+        if price_changed:
             product.price = new_price
-        if new_cost != old_cost and body.cost_price is not None:
+        if cost_changed:
             product.cost_price = new_cost
 
         channel_results: list[ChannelDeleteResult] = []
-        if body.sync_channels and (new_price != old_price or new_cost != old_cost):
+        if body.sync_channels and (price_changed or cost_changed):
             channel_results = [
                 ChannelDeleteResult(**r)
                 for r in await _sync_price_to_channels(session, product, current_user.id, body.channel_types or None)
             ]
+
+        # 이력 기록 — price/cost_price 각각 별도 행으로
+        if price_changed:
+            session.add(
+                ProductPriceHistory(
+                    product_id=product.id,
+                    user_id=current_user.id,
+                    field="price",
+                    old_value=old_price,
+                    new_value=new_price,
+                    batch_id=batch_id,
+                    change_mode=body.price.mode if body.price else None,
+                    change_value=float(body.price.value) if body.price else None,
+                    channel_results=[r.model_dump() for r in channel_results] or None,
+                )
+            )
+        if cost_changed:
+            session.add(
+                ProductPriceHistory(
+                    product_id=product.id,
+                    user_id=current_user.id,
+                    field="cost_price",
+                    old_value=old_cost,
+                    new_value=new_cost,
+                    batch_id=batch_id,
+                    change_mode=body.cost_price.mode if body.cost_price else None,
+                    change_value=float(body.cost_price.value) if body.cost_price else None,
+                )
+            )
 
         items.append(
             BulkPriceProductResult(
@@ -474,7 +512,12 @@ async def bulk_edit_price(body: BulkPriceEditRequest, session: SessionDep, curre
 
     await session.commit()
     return ApiResponse(
-        data=BulkPriceEditResult(updated_count=len(items), sync_attempted=body.sync_channels, items=items)
+        data=BulkPriceEditResult(
+            updated_count=len(items),
+            sync_attempted=body.sync_channels,
+            batch_id=batch_id,
+            items=items,
+        )
     )
 
 
@@ -553,6 +596,235 @@ async def _sync_price_to_channels(
                 with contextlib.suppress(Exception):
                     await gateway.close()
     return results
+
+
+# ===== 가격 변경 이력 + 되돌리기 =====
+
+
+class PriceHistoryItem(BaseModel):
+    id: uuid.UUID
+    product_id: uuid.UUID
+    field: str
+    old_value: float | None
+    new_value: float
+    batch_id: uuid.UUID
+    change_mode: str | None
+    change_value: float | None
+    channel_results: list[dict] | None = None
+    reverted_at: datetime | None = None
+    created_at: datetime | None = None
+
+
+class PriceBatchItem(BaseModel):
+    batch_id: uuid.UUID
+    created_at: datetime | None
+    product_count: int
+    change_mode: str | None
+    change_value: float | None
+    field: str  # 해당 batch의 대표 field (대부분 price 또는 cost_price 단독)
+    is_reverted: bool  # 전부 reverted인가
+
+
+@router.get("/price-history/recent", response_model=ApiResponse[list[PriceBatchItem]])
+async def list_recent_price_batches(
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    limit: int = Query(20, ge=1, le=100),
+):
+    """최근 가격 변경 batch 목록 (일괄 작업 단위)."""
+    from src.infra.db.models.price_history import ProductPriceHistory
+
+    rows = (
+        await session.execute(
+            select(
+                ProductPriceHistory.batch_id,
+                func.min(ProductPriceHistory.created_at).label("created_at"),
+                func.count(ProductPriceHistory.id).label("product_count"),
+                func.max(ProductPriceHistory.change_mode).label("change_mode"),
+                func.max(ProductPriceHistory.change_value).label("change_value"),
+                func.max(ProductPriceHistory.field).label("field"),
+                func.bool_and(ProductPriceHistory.reverted_at.is_not(None)).label("is_reverted"),
+            )
+            .where(ProductPriceHistory.user_id == current_user.id)
+            .group_by(ProductPriceHistory.batch_id)
+            .order_by(func.min(ProductPriceHistory.created_at).desc())
+            .limit(limit)
+        )
+    ).all()
+    return ApiResponse(
+        data=[
+            PriceBatchItem(
+                batch_id=r.batch_id,
+                created_at=r.created_at,
+                product_count=r.product_count,
+                change_mode=r.change_mode,
+                change_value=float(r.change_value) if r.change_value is not None else None,
+                field=r.field,
+                is_reverted=bool(r.is_reverted),
+            )
+            for r in rows
+        ]
+    )
+
+
+@router.get("/{product_id}/price-history", response_model=ApiResponse[list[PriceHistoryItem]])
+async def list_product_price_history(
+    product_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    limit: int = Query(50, ge=1, le=200),
+):
+    """한 상품의 가격 변경 이력 (최신 순)."""
+    from src.infra.db.models.price_history import ProductPriceHistory
+
+    # 권한 확인
+    product = await session.get(Product, product_id)
+    if not product or product.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다")
+
+    rows = list(
+        (
+            await session.execute(
+                select(ProductPriceHistory)
+                .where(ProductPriceHistory.product_id == product_id)
+                .order_by(ProductPriceHistory.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return ApiResponse(
+        data=[
+            PriceHistoryItem(
+                id=h.id,
+                product_id=h.product_id,
+                field=h.field,
+                old_value=float(h.old_value) if h.old_value is not None else None,
+                new_value=float(h.new_value),
+                batch_id=h.batch_id,
+                change_mode=h.change_mode,
+                change_value=float(h.change_value) if h.change_value is not None else None,
+                channel_results=h.channel_results,
+                reverted_at=h.reverted_at,
+                created_at=h.created_at,
+            )
+            for h in rows
+        ]
+    )
+
+
+class RevertBatchResult(BaseModel):
+    batch_id: uuid.UUID
+    reverted_count: int  # 되돌린 상품 행 수
+    new_batch_id: uuid.UUID  # 되돌리기 자체도 새 batch로 기록됨
+    items: list[BulkPriceProductResult]
+
+
+@router.post("/price-history/{batch_id}/revert", response_model=ApiResponse[RevertBatchResult])
+async def revert_price_batch(
+    batch_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+):
+    """batch_id로 묶인 모든 가격 변경을 일괄 되돌린다.
+
+    - 각 history 행의 old_value를 현재 값으로 다시 적용
+    - 되돌리기 자체도 새 batch로 기록 (change_mode="revert")
+    - 이미 reverted된 이력은 스킵
+    - 채널에도 되돌린 값을 푸시
+    """
+    from src.infra.db.models.price_history import ProductPriceHistory
+    from src.utils.clock import now as now_ts
+
+    # 대상 history 조회 (사용자 소유만)
+    histories = list(
+        (
+            await session.execute(
+                select(ProductPriceHistory)
+                .where(
+                    ProductPriceHistory.batch_id == batch_id,
+                    ProductPriceHistory.user_id == current_user.id,
+                    ProductPriceHistory.reverted_at.is_(None),
+                )
+                .order_by(ProductPriceHistory.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not histories:
+        raise HTTPException(status_code=404, detail="되돌릴 변경 이력을 찾을 수 없습니다")
+
+    # product_id별로 그룹핑하여 각 상품의 price/cost_price를 한 번에 처리
+    per_product: dict[uuid.UUID, dict[str, ProductPriceHistory]] = {}
+    for h in histories:
+        per_product.setdefault(h.product_id, {})[h.field] = h
+
+    new_batch_id = uuid.uuid4()
+    revert_ts = now_ts()
+    items: list[BulkPriceProductResult] = []
+
+    for product_id, field_map in per_product.items():
+        product = await session.get(Product, product_id)
+        if not product or product.user_id != current_user.id or product.deleted_at is not None:
+            continue
+
+        old_price = float(product.price)
+        old_cost = float(product.cost_price) if product.cost_price is not None else None
+        new_price = old_price
+        new_cost = old_cost
+
+        # price history
+        if "price" in field_map and field_map["price"].old_value is not None:
+            new_price = float(field_map["price"].old_value)
+            product.price = new_price
+        if "cost_price" in field_map and field_map["cost_price"].old_value is not None:
+            new_cost = float(field_map["cost_price"].old_value)
+            product.cost_price = new_cost
+
+        # 채널에 되돌린 값 푸시
+        channel_results_dict = await _sync_price_to_channels(session, product, current_user.id, None)
+        channel_results = [ChannelDeleteResult(**r) for r in channel_results_dict]
+
+        # 원본 이력에 reverted_at 표시 + 새 이력 생성
+        for field_name, h in field_map.items():
+            revert_history = ProductPriceHistory(
+                product_id=product.id,
+                user_id=current_user.id,
+                field=field_name,
+                old_value=float(h.new_value),
+                new_value=float(h.old_value) if h.old_value is not None else 0,
+                batch_id=new_batch_id,
+                change_mode="revert",
+                change_value=None,
+                channel_results=[r.model_dump() for r in channel_results] if field_name == "price" else None,
+            )
+            session.add(revert_history)
+            await session.flush()
+            h.reverted_at = revert_ts
+            h.reverted_by_history_id = revert_history.id
+
+        items.append(
+            BulkPriceProductResult(
+                product_id=product.id,
+                old_price=old_price,
+                new_price=new_price,
+                old_cost_price=old_cost,
+                new_cost_price=new_cost,
+                channel_results=channel_results,
+            )
+        )
+
+    await session.commit()
+    return ApiResponse(
+        data=RevertBatchResult(
+            batch_id=batch_id,
+            reverted_count=len(items),
+            new_batch_id=new_batch_id,
+            items=items,
+        )
+    )
 
 
 @router.get("/{product_id}", response_model=ApiResponse[ProductDetailResponse])

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { DeleteProductDialog } from "./DeleteProductDialog";
+import { PriceHistoryCard } from "./PriceHistoryCard";
 
 interface ProductImage {
   id: string;
@@ -194,6 +195,10 @@ export function ProductDetail({ product }: ProductDetailProps) {
                     </p>
                   </CardContent>
                 </Card>
+
+                <div className="lg:col-span-2">
+                  <PriceHistoryCard productId={product.id} />
+                </div>
               </div>
             )}
 
