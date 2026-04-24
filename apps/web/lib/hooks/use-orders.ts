@@ -19,6 +19,10 @@ interface OrderItemDetail {
   name: string;
   quantity: number;
   unit_price: number;
+  total_price: number;
+  sku: string | null;
+  option_text: string | null;
+  product_id: string | null;
 }
 
 interface OrderDetail {
@@ -32,11 +36,15 @@ interface OrderDetail {
   recipient_name: string | null;
   recipient_phone: string | null;
   recipient_address: string | null;
+  recipient_zipcode: string | null;
   total_amount: number;
   shipping_fee: number;
   ordered_at: string | null;
   paid_at: string | null;
   shipped_at: string | null;
+  delivered_at: string | null;
+  tracking_number: string | null;
+  tracking_company: string | null;
   items: OrderItemDetail[];
 }
 

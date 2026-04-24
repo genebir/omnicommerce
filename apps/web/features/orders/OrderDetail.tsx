@@ -1,7 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Package, CheckCircle2, Clock, Truck, PackageCheck, XCircle, RotateCcw } from "lucide-react";
+import {
+  ArrowLeft,
+  Package,
+  CheckCircle2,
+  Clock,
+  Truck,
+  PackageCheck,
+  XCircle,
+  RotateCcw,
+  Info,
+  ExternalLink,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -18,8 +29,12 @@ import { useUpdateOrderStatus } from "@/lib/hooks";
 interface OrderItem {
   id: string;
   productName: string;
+  sku: string | null;
+  optionText: string | null;
+  productId: string | null;
   quantity: number;
   unitPrice: number;
+  totalPrice: number;
 }
 
 interface OrderDetailData {
@@ -29,14 +44,23 @@ interface OrderDetailData {
   status: string;
   totalAmount: number;
   shippingFee: number;
-  customer: {
-    name: string;
-    phone: string;
-    address: string;
+  buyer: {
+    name: string | null;
+    phone: string | null;
+    email: string | null;
   };
-  orderedAt: string;
-  paidAt: string;
-  shippedAt?: string;
+  recipient: {
+    name: string | null;
+    phone: string | null;
+    address: string | null;
+    zipcode: string | null;
+  };
+  trackingNumber: string | null;
+  trackingCompany: string | null;
+  orderedAt: string | null;
+  paidAt: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
   items: OrderItem[];
 }
 
@@ -62,6 +86,18 @@ interface OrderDetailProps {
   order?: OrderDetailData | null;
 }
 
+type StatusKey =
+  | "statusPaid"
+  | "statusPreparing"
+  | "statusShipped"
+  | "statusDelivered"
+  | "statusCanceled"
+  | "statusRefunded";
+
+function statusKeyOf(status: string): StatusKey {
+  return `status${status.charAt(0)}${status.slice(1).toLowerCase()}` as StatusKey;
+}
+
 export function OrderDetail({ order }: OrderDetailProps) {
   const t = useTranslations("orders");
   const tc = useTranslations("common");
@@ -73,23 +109,25 @@ export function OrderDetail({ order }: OrderDetailProps) {
       <div className="flex flex-col items-center justify-center gap-4 py-24">
         <Package className="size-12 text-text-tertiary" />
         <p className="text-text-secondary">{t("notFound")}</p>
-        <Link
-          href="/orders"
-          className="text-sm text-accent-iris hover:underline"
-        >
+        <Link href="/orders" className="text-sm text-accent-iris hover:underline">
           {tc("back")}
         </Link>
       </div>
     );
   }
 
-  const statusKey = `status${order.status.charAt(0)}${order.status.slice(1).toLowerCase()}` as
-    | "statusPaid"
-    | "statusPreparing"
-    | "statusShipped"
-    | "statusDelivered"
-    | "statusCanceled"
-    | "statusRefunded";
+  // cafe24 mall.read_personal 권한 누락 휴리스틱:
+  // 채널 주문인데 buyer/payment 핵심 필드가 모두 비어있으면 권한 안내 표시
+  const isMissingPersonal =
+    order.channel === "cafe24" &&
+    order.buyer.name === null &&
+    order.buyer.phone === null &&
+    order.totalAmount === 0;
+
+  const itemsSubtotal = order.items.reduce(
+    (sum, it) => sum + (it.totalPrice || it.unitPrice * it.quantity),
+    0,
+  );
 
   return (
     <div className="space-y-6">
@@ -104,16 +142,19 @@ export function OrderDetail({ order }: OrderDetailProps) {
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-text-primary">
+            <h1 className="font-mono text-2xl font-bold text-text-primary">
               {order.orderNumber}
             </h1>
             <ChannelBadge code={order.channel} />
           </div>
+          <p className="mt-0.5 text-xs text-text-tertiary">
+            {order.orderedAt ? formatDateTime(order.orderedAt) : "—"}
+          </p>
         </div>
         <span
           className={`rounded-full px-3 py-1 text-xs font-medium ${statusColors[order.status] ?? "bg-bg-surface-2 text-text-secondary"}`}
         >
-          {t(statusKey)}
+          {t(statusKeyOf(order.status))}
         </span>
         {(VALID_TRANSITIONS[order.status]?.length ?? 0) > 0 && (
           <DropdownMenu
@@ -127,15 +168,15 @@ export function OrderDetail({ order }: OrderDetailProps) {
             }
           >
             {VALID_TRANSITIONS[order.status]?.map((nextStatus) => {
-              const key = `status${nextStatus.charAt(0)}${nextStatus.slice(1).toLowerCase()}` as keyof typeof statusColors;
-              const isDestructive = nextStatus === "CANCELED" || nextStatus === "REFUNDED";
+              const isDestructive =
+                nextStatus === "CANCELED" || nextStatus === "REFUNDED";
               return (
                 <DropdownItem
                   key={nextStatus}
                   destructive={isDestructive}
                   onClick={() => setPendingStatus(nextStatus)}
                 >
-                  {t(key as "statusPaid" | "statusPreparing" | "statusShipped" | "statusDelivered" | "statusCanceled" | "statusRefunded")}
+                  {t(statusKeyOf(nextStatus))}
                 </DropdownItem>
               );
             })}
@@ -148,9 +189,7 @@ export function OrderDetail({ order }: OrderDetailProps) {
         onOpenChange={(open) => !open && setPendingStatus(null)}
         title={t("changeStatus")}
         description={t("changeStatusConfirm", {
-          status: pendingStatus
-            ? t(`status${pendingStatus.charAt(0)}${pendingStatus.slice(1).toLowerCase()}` as "statusPaid")
-            : "",
+          status: pendingStatus ? t(statusKeyOf(pendingStatus)) : "",
         })}
         confirmLabel={tc("confirm")}
         cancelLabel={tc("cancel")}
@@ -164,31 +203,111 @@ export function OrderDetail({ order }: OrderDetailProps) {
         }}
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* 주문 정보 */}
+      {isMissingPersonal && (
+        <div className="flex items-start gap-3 rounded-xl border border-state-warn/30 bg-state-warn/5 p-4">
+          <Info className="mt-0.5 size-5 shrink-0 text-state-warn" />
+          <div className="space-y-1 text-sm">
+            <p className="font-medium text-text-primary">
+              {t("personalScopeMissingTitle")}
+            </p>
+            <p className="text-text-secondary">
+              {t("personalScopeMissingDesc")}
+            </p>
+            <Link
+              href="/channels"
+              className="inline-flex items-center gap-1 text-accent-iris hover:underline"
+            >
+              {t("personalScopeReconnect")}
+              <ExternalLink className="size-3" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* 주문자 */}
         <Card>
           <CardHeader>
-            <CardTitle>{t("orderInfo")}</CardTitle>
+            <CardTitle>{t("buyerInfo")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <InfoRow label={t("columnOrderNumber")} value={order.orderNumber} mono />
-            <InfoRow label={t("orderedAt")} value={formatDate(order.orderedAt)} />
-            <InfoRow label={t("columnTotal")} value={formatCurrency(order.totalAmount)} mono />
+            <InfoRow label={t("customerName")} value={order.buyer.name ?? "—"} />
+            <InfoRow
+              label={t("customerPhone")}
+              value={order.buyer.phone ?? "—"}
+              mono={!!order.buyer.phone}
+            />
+            <InfoRow
+              label={t("customerEmail")}
+              value={order.buyer.email ?? "—"}
+            />
           </CardContent>
         </Card>
 
-        {/* 주문자 정보 */}
-        <Card className="lg:col-span-2">
+        {/* 수령자 */}
+        <Card>
           <CardHeader>
-            <CardTitle>{t("customerInfo")}</CardTitle>
+            <CardTitle>{t("recipientInfo")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <InfoRow label={t("customerName")} value={order.customer.name} />
-            <InfoRow label={t("customerPhone")} value={order.customer.phone || "—"} mono />
-            <InfoRow label={t("customerAddress")} value={order.customer.address || "—"} />
+            <InfoRow
+              label={t("recipientName")}
+              value={order.recipient.name ?? "—"}
+            />
+            <InfoRow
+              label={t("recipientPhone")}
+              value={order.recipient.phone ?? "—"}
+              mono={!!order.recipient.phone}
+            />
+            <InfoRow
+              label={t("recipientAddress")}
+              value={
+                order.recipient.address
+                  ? `${order.recipient.zipcode ? `(${order.recipient.zipcode}) ` : ""}${order.recipient.address}`
+                  : "—"
+              }
+            />
+            {order.trackingNumber && (
+              <InfoRow
+                label={t("trackingNumber")}
+                value={`${order.trackingCompany ?? ""} ${order.trackingNumber}`.trim()}
+                mono
+              />
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {/* 결제 요약 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("paymentSummary")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-text-tertiary">{t("itemsSubtotal")}</span>
+              <span className="font-mono text-text-primary">
+                {formatCurrency(itemsSubtotal)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-text-tertiary">{t("shippingFee")}</span>
+              <span className="font-mono text-text-primary">
+                {formatCurrency(order.shippingFee)}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between border-t border-border-subtle pt-3">
+              <span className="font-medium text-text-primary">
+                {t("paymentTotal")}
+              </span>
+              <span className="font-mono text-lg font-bold text-text-primary">
+                {formatCurrency(order.totalAmount || itemsSubtotal + order.shippingFee)}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 타임라인 */}
       <Card>
@@ -206,50 +325,63 @@ export function OrderDetail({ order }: OrderDetailProps) {
           <CardTitle>{t("items")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border-subtle text-left text-text-tertiary">
-                  <th className="pb-3 font-medium">{t("productName")}</th>
-                  <th className="pb-3 text-right font-medium">{t("quantity")}</th>
-                  <th className="pb-3 text-right font-medium">{t("unitPrice")}</th>
-                  <th className="pb-3 text-right font-medium">{t("subtotal")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {order.items.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-border-subtle last:border-0"
-                  >
-                    <td className="py-3 text-text-primary">{item.productName}</td>
-                    <td className="py-3 text-right font-mono text-text-secondary">
-                      {item.quantity}
-                    </td>
-                    <td className="py-3 text-right font-mono text-text-secondary">
-                      {formatCurrency(item.unitPrice)}
-                    </td>
-                    <td className="py-3 text-right font-mono text-text-primary">
-                      {formatCurrency(item.unitPrice * item.quantity)}
-                    </td>
+          {order.items.length === 0 ? (
+            <p className="py-6 text-center text-sm text-text-tertiary">
+              {t("noItems")}
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border-subtle text-left text-text-tertiary">
+                    <th className="pb-3 font-medium">{t("productName")}</th>
+                    <th className="pb-3 font-medium">{t("columnSku")}</th>
+                    <th className="pb-3 text-right font-medium">{t("quantity")}</th>
+                    <th className="pb-3 text-right font-medium">{t("unitPrice")}</th>
+                    <th className="pb-3 text-right font-medium">{t("subtotal")}</th>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td
-                    colSpan={3}
-                    className="pt-3 text-right font-medium text-text-secondary"
-                  >
-                    {t("columnTotal")}
-                  </td>
-                  <td className="pt-3 text-right font-mono text-lg font-semibold text-text-primary">
-                    {formatCurrency(order.totalAmount)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {order.items.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="border-b border-border-subtle last:border-0"
+                    >
+                      <td className="py-3 text-text-primary">
+                        {item.productId ? (
+                          <Link
+                            href={`/products/${item.productId}`}
+                            className="text-accent-iris hover:underline"
+                          >
+                            {item.productName}
+                          </Link>
+                        ) : (
+                          item.productName
+                        )}
+                        {item.optionText && (
+                          <span className="ml-2 text-xs text-text-tertiary">
+                            ({item.optionText})
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 font-mono text-xs text-text-secondary">
+                        {item.sku ?? "—"}
+                      </td>
+                      <td className="py-3 text-right font-mono text-text-secondary">
+                        {item.quantity}
+                      </td>
+                      <td className="py-3 text-right font-mono text-text-secondary">
+                        {formatCurrency(item.unitPrice)}
+                      </td>
+                      <td className="py-3 text-right font-mono text-text-primary">
+                        {formatCurrency(item.totalPrice || item.unitPrice * item.quantity)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -266,10 +398,10 @@ function InfoRow({
   mono?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-text-tertiary">{label}</span>
+    <div className="flex items-start justify-between gap-4">
+      <span className="shrink-0 text-sm text-text-tertiary">{label}</span>
       <span
-        className={`text-sm text-text-primary ${mono ? "font-mono" : ""}`}
+        className={`text-right text-sm text-text-primary ${mono ? "font-mono" : ""}`}
       >
         {value}
       </span>
@@ -297,11 +429,11 @@ function OrderTimeline({
   const isRefunded = order.status === "REFUNDED";
   const currentIdx = STATUS_ORDER.indexOf(order.status);
 
-  const timestamps: Record<string, string | undefined> = {
+  const timestamps: Record<string, string | null | undefined> = {
     PAID: order.paidAt || order.orderedAt,
     PREPARING: undefined,
     SHIPPED: order.shippedAt,
-    DELIVERED: undefined,
+    DELIVERED: order.deliveredAt,
   };
 
   return (
@@ -311,11 +443,7 @@ function OrderTimeline({
         const isCurrent = idx === currentIdx && !isCanceled && !isRefunded;
         const Icon = step.icon;
         const ts = timestamps[step.status];
-        const statusKey = `status${step.status.charAt(0)}${step.status.slice(1).toLowerCase()}` as
-          | "statusPaid"
-          | "statusPreparing"
-          | "statusShipped"
-          | "statusDelivered";
+        const statusKey = statusKeyOf(step.status);
 
         return (
           <div key={step.status} className="flex flex-1 flex-col items-center gap-2">
@@ -344,8 +472,8 @@ function OrderTimeline({
               {t(statusKey)}
             </span>
             {ts && (
-              <span className="text-[10px] font-mono text-text-tertiary">
-                {formatDateTime(ts)}
+              <span className="font-mono text-[10px] text-text-tertiary">
+                {formatDate(ts)}
               </span>
             )}
           </div>

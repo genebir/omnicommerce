@@ -35,6 +35,10 @@ class OrderItemResponse(BaseModel):
     name: str
     quantity: int
     unit_price: float
+    total_price: float
+    sku: str | None = None
+    option_text: str | None = None
+    product_id: uuid.UUID | None = None
 
     model_config = {"from_attributes": True}
 
@@ -50,11 +54,15 @@ class OrderDetailResponse(BaseModel):
     recipient_name: str | None
     recipient_phone: str | None
     recipient_address: str | None
+    recipient_zipcode: str | None = None
     total_amount: float
     shipping_fee: float
     ordered_at: datetime | None
     paid_at: datetime | None
     shipped_at: datetime | None
+    delivered_at: datetime | None = None
+    tracking_number: str | None = None
+    tracking_company: str | None = None
     items: list[OrderItemResponse]
 
     model_config = {"from_attributes": True}
