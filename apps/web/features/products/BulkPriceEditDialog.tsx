@@ -192,7 +192,7 @@ export function BulkPriceEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-[min(1400px,95vw)] overflow-y-auto sm:w-auto">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto sm:w-auto sm:max-w-[min(1400px,95vw)]">
         <DialogHeader>
           <DialogTitle>{t("title", { count: selectedProducts.length })}</DialogTitle>
         </DialogHeader>
