@@ -12,8 +12,7 @@ import { formatCurrency } from "@/lib/utils/format";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useProducts, useDeleteProduct, type ChannelListingInfo } from "@/lib/hooks";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { BulkDeleteProductsDialog } from "./BulkDeleteProductsDialog";
 import { DeleteProductDialog } from "./DeleteProductDialog";
 
 interface ProductRow {
@@ -26,48 +25,6 @@ interface ProductRow {
 }
 
 const columnHelper = createColumnHelper<ProductRow>();
-
-/** 일괄 삭제 확인 다이얼로그 */
-function BulkDeleteDialog({
-  open,
-  onOpenChange,
-  count,
-  onConfirm,
-  loading,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  count: number;
-  onConfirm: () => void;
-  loading: boolean;
-}) {
-  const t = useTranslations("products");
-  const tc = useTranslations("common");
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="text-state-error">{t("bulkDeleteTitle")}</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-text-secondary py-2">
-          {t("bulkDeleteConfirm", { count })}
-        </p>
-        <p className="text-xs text-text-tertiary">
-          {t("bulkDeleteChannelHint")}
-        </p>
-        <DialogFooter className="gap-2 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>
-            {tc("cancel")}
-          </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={loading}>
-            {loading ? <Loader2 className="size-4 animate-spin" /> : tc("delete")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 export function ProductsTable() {
   const t = useTranslations("products");
@@ -209,9 +166,10 @@ export function ProductsTable() {
   }
 
   const selectedCount = Object.keys(rowSelection).length;
-  const selectedIds = Object.keys(rowSelection)
-    .map((idx) => products[Number(idx)]?.id)
+  const selectedProducts = Object.keys(rowSelection)
+    .map((idx) => products[Number(idx)])
     .filter(Boolean);
+  const selectedIds = selectedProducts.map((p) => p.id);
 
   async function handleSingleDelete(channelTypes: string[]) {
     if (!deleteTarget) return;
@@ -235,13 +193,31 @@ export function ProductsTable() {
     }
   }
 
-  async function handleBulkDelete() {
+  async function handleBulkDelete(channelTypes: string[]) {
+    const failures = new Map<string, number>(); // channel_type → 실패 상품 수
+    let needsReconnect = false;
     for (const id of selectedIds) {
-      await deleteProduct.mutateAsync({ id });
+      const res = await deleteProduct.mutateAsync({ id, channelTypes });
+      for (const r of res?.data?.channel_results ?? []) {
+        if (r.requires_reconnect) needsReconnect = true;
+        if (!r.success) failures.set(r.channel_type, (failures.get(r.channel_type) ?? 0) + 1);
+      }
     }
     setRowSelection({});
     setShowBulkDelete(false);
-    toast.success(t("bulkDeleteSuccess", { count: selectedIds.length }));
+
+    if (needsReconnect) {
+      toast.error(t("deleteAuthExpired"), {
+        action: { label: t("goToChannels"), onClick: () => window.location.href = "/channels" },
+        duration: 8000,
+      });
+    } else if (failures.size > 0) {
+      toast.warning(
+        t("deleteChannelFailed", { channels: Array.from(failures.keys()).join(", ") }),
+      );
+    } else {
+      toast.success(t("bulkDeleteSuccess", { count: selectedIds.length }));
+    }
   }
 
   return (
@@ -294,11 +270,11 @@ export function ProductsTable() {
         loading={deleteProduct.isPending}
       />
 
-      {/* 일괄 삭제 — 간단 확인 */}
-      <BulkDeleteDialog
+      {/* 일괄 삭제 — 채널 합집합 선택 */}
+      <BulkDeleteProductsDialog
         open={showBulkDelete}
         onOpenChange={setShowBulkDelete}
-        count={selectedIds.length}
+        selectedProducts={selectedProducts}
         onConfirm={handleBulkDelete}
         loading={deleteProduct.isPending}
       />
