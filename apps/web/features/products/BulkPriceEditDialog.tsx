@@ -192,7 +192,7 @@ export function BulkPriceEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-5xl overflow-y-auto sm:w-auto">
         <DialogHeader>
           <DialogTitle>{t("title", { count: selectedProducts.length })}</DialogTitle>
         </DialogHeader>
@@ -326,28 +326,38 @@ export function BulkPriceEditDialog({
                   <span className="text-text-tertiary">{t("preview")}</span>
                 </Label>
               </div>
-              <div className="max-h-72 overflow-y-auto rounded-xl border border-border-subtle">
-                <table className="w-full text-sm">
+              <div className="max-h-80 overflow-auto rounded-xl border border-border-subtle">
+                <table className="w-full table-fixed text-sm">
+                  <colgroup>
+                    <col className="w-[40%]" />
+                    <col className="w-[18%]" />
+                    <col className="w-[24%]" />
+                    <col className="w-[18%]" />
+                  </colgroup>
                   <thead className="sticky top-0 bg-bg-surface text-left text-xs text-text-tertiary">
                     <tr className="border-b border-border-subtle">
-                      <th className="p-2 font-medium">{t("colProduct")}</th>
-                      <th className="p-2 text-right font-medium">{t("colCurrent")}</th>
-                      <th className="p-2 text-right font-medium">{t("colNew")}</th>
-                      <th className="p-2 font-medium">{t("colChannels")}</th>
+                      <th className="px-3 py-2 font-medium">{t("colProduct")}</th>
+                      <th className="px-3 py-2 text-right font-medium">{t("colCurrent")}</th>
+                      <th className="px-3 py-2 text-right font-medium">{t("colNew")}</th>
+                      <th className="px-3 py-2 font-medium">{t("colChannels")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {previews.map((p) => (
                       <tr key={p.product.id} className="border-b border-border-subtle last:border-0">
-                        <td className="p-2 text-text-primary">
-                          <div className="truncate">{p.product.name}</div>
-                          <div className="font-mono text-[11px] text-text-tertiary">{p.product.sku}</div>
+                        <td className="px-3 py-2 text-text-primary">
+                          <div className="truncate" title={p.product.name}>
+                            {p.product.name}
+                          </div>
+                          <div className="truncate font-mono text-[11px] text-text-tertiary">
+                            {p.product.sku}
+                          </div>
                         </td>
-                        <td className="p-2 text-right font-mono text-text-tertiary">
+                        <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-text-tertiary">
                           {field === "price" ? formatCurrency(p.oldPrice) : "—"}
                         </td>
                         <td
-                          className={`p-2 text-right font-mono ${
+                          className={`whitespace-nowrap px-3 py-2 text-right font-mono ${
                             mode !== "custom" && p.diff < 0
                               ? "text-state-error"
                               : mode !== "custom" && p.diff > 0
@@ -367,20 +377,21 @@ export function BulkPriceEditDialog({
                                 })
                               }
                               placeholder={String(p.oldPrice)}
-                              className="w-28 text-right font-mono"
+                              className="ml-auto w-full max-w-32 text-right font-mono"
                             />
                           ) : (
-                            <>
-                              {field === "price" ? formatCurrency(p.newPrice) : "—"}
+                            <div>
+                              <div>{field === "price" ? formatCurrency(p.newPrice) : "—"}</div>
                               {field === "price" && p.diff !== 0 && (
-                                <span className="ml-1 text-[11px]">
-                                  ({p.diff > 0 ? "+" : ""}{formatCurrency(p.diff)})
-                                </span>
+                                <div className="text-[11px] opacity-80">
+                                  ({p.diff > 0 ? "+" : ""}
+                                  {formatCurrency(p.diff)})
+                                </div>
                               )}
-                            </>
+                            </div>
                           )}
                         </td>
-                        <td className="p-2">
+                        <td className="px-3 py-2">
                           <div className="flex flex-wrap gap-1">
                             {p.affectedChannels.length === 0 ? (
                               <span className="text-[11px] text-text-tertiary">—</span>
