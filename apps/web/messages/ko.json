@@ -21,7 +21,8 @@
     "backToDashboard": "대시보드로 돌아가기",
     "error": "오류",
     "errorMessage": "문제가 발생했습니다",
-    "tryAgain": "다시 시도"
+    "tryAgain": "다시 시도",
+    "clearFilter": "필터 해제"
   },
   "nav": {
     "dashboard": "대시보드",
@@ -337,7 +338,8 @@
     "columnTotal": "합계",
     "adjustStock": "재고 조정",
     "updateSuccess": "재고가 수정되었습니다",
-    "updateError": "재고 수정에 실패했습니다"
+    "updateError": "재고 수정에 실패했습니다",
+    "lowStockFilter": "재고 부족 항목만 표시 중 (가용 재고 10개 미만)"
   },
   "channels": {
     "title": "채널 연결",

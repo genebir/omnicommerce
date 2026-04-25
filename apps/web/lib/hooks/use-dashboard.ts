@@ -8,6 +8,8 @@ interface DashboardStats {
   total_orders: number;
   recent_orders: number;
   low_stock_count: number;
+  pending_orders: number;
+  sync_issue_count: number;
 }
 
 interface MonthlySales {

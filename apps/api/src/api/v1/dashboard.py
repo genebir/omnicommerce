@@ -7,7 +7,8 @@ from pydantic import BaseModel
 from sqlalchemy import extract, func, select
 
 from src.api.v1.schemas import ApiResponse
-from src.core.deps import SessionDep
+from src.core.deps import CurrentUserDep, SessionDep
+from src.infra.db.models.channel_listing import ChannelListing
 from src.infra.db.models.inventory import Inventory
 from src.infra.db.models.order import Order
 from src.infra.db.models.product import Product
@@ -23,6 +24,8 @@ class DashboardStats(BaseModel):
     total_orders: int
     recent_orders: int
     low_stock_count: int
+    pending_orders: int
+    sync_issue_count: int
 
 
 class MonthlySales(BaseModel):
@@ -36,24 +39,54 @@ class SalesResponse(BaseModel):
 
 
 @router.get("/stats", response_model=ApiResponse[DashboardStats])
-async def get_dashboard_stats(session: SessionDep):
+async def get_dashboard_stats(session: SessionDep, current_user: CurrentUserDep):
     product_count = await session.execute(
-        select(func.count()).select_from(select(Product).where(Product.deleted_at.is_(None)).subquery())
+        select(func.count()).select_from(
+            select(Product).where(Product.deleted_at.is_(None), Product.user_id == current_user.id).subquery()
+        )
     )
     order_count = await session.execute(
-        select(func.count()).select_from(select(Order).where(Order.deleted_at.is_(None)).subquery())
+        select(func.count()).select_from(
+            select(Order).where(Order.deleted_at.is_(None), Order.user_id == current_user.id).subquery()
+        )
     )
 
     seven_days_ago = now() - timedelta(days=7)
     recent_result = await session.execute(
         select(func.count()).select_from(
-            select(Order).where(Order.deleted_at.is_(None), Order.created_at >= seven_days_ago).subquery()
+            select(Order)
+            .where(Order.deleted_at.is_(None), Order.user_id == current_user.id, Order.created_at >= seven_days_ago)
+            .subquery()
         )
     )
 
     low_stock_result = await session.execute(
         select(func.count()).select_from(
-            select(Inventory).where(Inventory.deleted_at.is_(None), Inventory.available < 10).subquery()
+            select(Inventory)
+            .join(Product, Inventory.product_id == Product.id)
+            .where(Inventory.deleted_at.is_(None), Inventory.available < 10, Product.user_id == current_user.id)
+            .subquery()
+        )
+    )
+
+    pending_orders_result = await session.execute(
+        select(func.count()).select_from(
+            select(Order)
+            .where(Order.deleted_at.is_(None), Order.user_id == current_user.id, Order.status == "PAID")
+            .subquery()
+        )
+    )
+
+    sync_issue_result = await session.execute(
+        select(func.count()).select_from(
+            select(ChannelListing)
+            .join(Product, ChannelListing.product_id == Product.id)
+            .where(
+                ChannelListing.deleted_at.is_(None),
+                ChannelListing.sync_status.in_(["PENDING", "STALE", "FAILED"]),
+                Product.user_id == current_user.id,
+            )
+            .subquery()
         )
     )
 
@@ -62,6 +95,8 @@ async def get_dashboard_stats(session: SessionDep):
         total_orders=order_count.scalar_one(),
         recent_orders=recent_result.scalar_one(),
         low_stock_count=low_stock_result.scalar_one(),
+        pending_orders=pending_orders_result.scalar_one(),
+        sync_issue_count=sync_issue_result.scalar_one(),
     )
     return ApiResponse(data=stats)
 

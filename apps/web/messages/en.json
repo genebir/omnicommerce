@@ -21,7 +21,8 @@
     "backToDashboard": "Back to dashboard",
     "error": "Error",
     "errorMessage": "Something went wrong",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "clearFilter": "Clear filter"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -337,7 +338,8 @@
     "columnTotal": "Total",
     "adjustStock": "Adjust Stock",
     "updateSuccess": "Stock updated",
-    "updateError": "Failed to update stock"
+    "updateError": "Failed to update stock",
+    "lowStockFilter": "Showing low stock items only (available < 10)"
   },
   "channels": {
     "title": "Channels",

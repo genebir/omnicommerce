@@ -23,13 +23,6 @@ export function DashboardContent() {
     }
   }, []);
 
-  const statCards = [
-    { key: "totalProducts" as const, icon: Package, value: stats?.total_products ?? 0 },
-    { key: "newOrders" as const, icon: ShoppingCart, value: stats?.total_orders ?? 0 },
-    { key: "lowStock" as const, icon: AlertTriangle, value: stats?.low_stock_count ?? 0 },
-    { key: "pendingSync" as const, icon: RefreshCw, value: 0 },
-  ];
-
   return (
     <>
       <OnboardingWizard
@@ -48,14 +41,33 @@ export function DashboardContent() {
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {statCards.map((stat) => (
-                <StatCard
-                  key={stat.key}
-                  label={t(stat.key)}
-                  value={stat.value}
-                  icon={stat.icon}
-                />
-              ))}
+              <StatCard
+                label={t("totalProducts")}
+                value={stats?.total_products ?? 0}
+                icon={Package}
+                href="/products"
+              />
+              <StatCard
+                label={t("newOrders")}
+                value={stats?.pending_orders ?? 0}
+                icon={ShoppingCart}
+                href="/orders?status=PAID"
+                urgent
+              />
+              <StatCard
+                label={t("lowStock")}
+                value={stats?.low_stock_count ?? 0}
+                icon={AlertTriangle}
+                href="/inventory?lowStock=true"
+                urgent
+              />
+              <StatCard
+                label={t("pendingSync")}
+                value={stats?.sync_issue_count ?? 0}
+                icon={RefreshCw}
+                href="/channels"
+                urgent
+              />
             </div>
           )}
 
