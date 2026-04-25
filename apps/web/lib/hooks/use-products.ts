@@ -286,3 +286,29 @@ export function useResyncProduct(productId: string) {
     },
   });
 }
+
+export interface SyncIssueItem {
+  product_id: string;
+  product_name: string;
+  sku: string;
+  channel_type: string;
+  sync_status: string;
+  last_error: string | null;
+  last_synced_at: string | null;
+}
+
+export interface SyncIssueResponse {
+  items: SyncIssueItem[];
+  total: number;
+}
+
+export function useSyncIssues(channelType?: string) {
+  return useQuery({
+    queryKey: ["products", "sync-issues", channelType],
+    queryFn: async () => {
+      const qs = channelType ? `?channel_type=${channelType}` : "";
+      const res = await api.get<SyncIssueResponse>(`/products/sync-issues${qs}`);
+      return res.data;
+    },
+  });
+}

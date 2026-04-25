@@ -408,7 +408,15 @@
     "tunnelCopied": "URI Copied",
     "tunnelSetupLink": "Open Cafe24 Developers",
     "tunnelStep2": "Once registered, click the button below to connect.",
-    "tunnelPermanent": "Permanent URL (always available)"
+    "tunnelPermanent": "Permanent URL (always available)",
+    "syncIssues": "Sync Issues",
+    "syncIssueCount": "{count} sync issues found",
+    "syncAllGood": "All channels synced successfully",
+    "syncAllGoodDesc": "No products with FAILED or STALE status",
+    "syncColProduct": "Product",
+    "syncColChannel": "Channel",
+    "syncColStatus": "Status",
+    "syncIssueLastUpdated": "As of {date}"
   },
   "settings": {
     "title": "Settings",

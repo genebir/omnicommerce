@@ -22,7 +22,10 @@ export {
   type PriceBatchItem,
   type RevertBatchResult,
   type ResyncResult,
+  type SyncIssueItem,
+  type SyncIssueResponse,
   useResyncProduct,
+  useSyncIssues,
 } from "./use-products";
 export {
   useOrders,

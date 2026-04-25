@@ -92,6 +92,59 @@ class DeleteProductResult(BaseModel):
     channel_results: list[ChannelDeleteResult] = []
 
 
+class SyncIssueItem(BaseModel):
+    product_id: uuid.UUID
+    product_name: str
+    sku: str
+    channel_type: str
+    sync_status: str
+    last_error: str | None = None
+    last_synced_at: datetime | None = None
+
+
+class SyncIssueResponse(BaseModel):
+    items: list[SyncIssueItem]
+    total: int
+
+
+@router.get("/sync-issues", response_model=ApiResponse[SyncIssueResponse])
+async def list_sync_issues(
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    channel_type: str | None = Query(None, description="채널 필터"),
+) -> ApiResponse[SyncIssueResponse]:
+    """동기화 실패·지연 상품 목록을 반환한다."""
+    query = (
+        select(ChannelListing, Product)
+        .join(Product, ChannelListing.product_id == Product.id)
+        .where(
+            ChannelListing.deleted_at.is_(None),
+            ChannelListing.sync_status.in_(["FAILED", "STALE", "PENDING"]),
+            Product.deleted_at.is_(None),
+            Product.user_id == current_user.id,
+        )
+    )
+    if channel_type:
+        query = query.where(ChannelListing.channel_type == channel_type)
+    query = query.order_by(ChannelListing.updated_at.desc()).limit(100)
+
+    result = await session.execute(query)
+    rows = result.all()
+    items = [
+        SyncIssueItem(
+            product_id=listing.product_id,
+            product_name=product.name,
+            sku=product.sku,
+            channel_type=listing.channel_type,
+            sync_status=listing.sync_status,
+            last_error=listing.last_error,
+            last_synced_at=listing.last_synced_at,
+        )
+        for listing, product in rows
+    ]
+    return ApiResponse(data=SyncIssueResponse(items=items, total=len(items)))
+
+
 @router.get("", response_model=PaginatedResponse[ProductResponse])
 async def list_products(
     session: SessionDep,

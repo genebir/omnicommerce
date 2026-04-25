@@ -408,7 +408,15 @@
     "tunnelCopied": "URI 복사됨",
     "tunnelSetupLink": "Cafe24 개발자센터 열기",
     "tunnelStep2": "등록이 완료되면 아래 버튼을 눌러 연결하세요.",
-    "tunnelPermanent": "영구 URL (항상 사용 가능)"
+    "tunnelPermanent": "영구 URL (항상 사용 가능)",
+    "syncIssues": "동기화 이슈",
+    "syncIssueCount": "{count}개의 동기화 문제가 있습니다",
+    "syncAllGood": "모든 채널이 정상 동기화 중입니다",
+    "syncAllGoodDesc": "FAILED 또는 STALE 상태의 상품이 없습니다",
+    "syncColProduct": "상품",
+    "syncColChannel": "채널",
+    "syncColStatus": "상태",
+    "syncIssueLastUpdated": "{date} 기준"
   },
   "settings": {
     "title": "설정",

@@ -65,7 +65,7 @@ export function DashboardContent() {
                 label={t("pendingSync")}
                 value={stats?.sync_issue_count ?? 0}
                 icon={RefreshCw}
-                href="/channels"
+                href="/channels?tab=sync-issues"
                 urgent
               />
             </div>

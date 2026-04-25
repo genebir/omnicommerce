@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft, Edit, Package, Trash2, ImageIcon, Plus, X, ExternalLink, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ChannelBadge, SyncStatus } from "@/components/patterns";
@@ -59,6 +59,8 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const t = useTranslations("products");
   const tc = useTranslations("common");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get("tab") ?? "info";
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const deleteProduct = useDeleteProduct();
@@ -167,7 +169,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
       />
 
       {/* 탭 */}
-      <Tabs tabs={tabs} defaultTab="info">
+      <Tabs tabs={tabs} defaultTab={defaultTab}>
         {(activeTab) => (
           <>
             {activeTab === "info" && (
