@@ -932,6 +932,105 @@ async def delete_product_image(product_id: uuid.UUID, image_id: uuid.UUID, sessi
     await session.commit()
 
 
+class ResyncResult(BaseModel):
+    channel_type: str
+    success: bool
+    sync_status: str
+    error: str | None = None
+
+
+@router.post("/{product_id}/channels/{channel_type}/resync", response_model=ApiResponse[ResyncResult])
+async def resync_product_to_channel(
+    product_id: uuid.UUID,
+    channel_type: str,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> ApiResponse[ResyncResult]:
+    """특정 채널로 상품을 강제 재동기화한다."""
+    from src.core.exceptions import AuthenticationError, ChannelResourceNotFoundError
+    from src.infra.channels.factory import create_gateway
+
+    product_result = await session.execute(
+        select(Product).where(
+            Product.id == product_id,
+            Product.deleted_at.is_(None),
+            Product.user_id == current_user.id,
+        )
+    )
+    product = product_result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다")
+
+    listing_result = await session.execute(
+        select(ChannelListing).where(
+            ChannelListing.product_id == product_id,
+            ChannelListing.channel_type == channel_type,
+            ChannelListing.deleted_at.is_(None),
+        )
+    )
+    listing = listing_result.scalar_one_or_none()
+    if not listing:
+        raise HTTPException(status_code=404, detail="채널 등록 정보를 찾을 수 없습니다")
+
+    channel_result = await session.execute(
+        select(Channel).where(
+            Channel.user_id == current_user.id,
+            Channel.channel_type == channel_type,
+            Channel.deleted_at.is_(None),
+            Channel.is_active.is_(True),
+        )
+    )
+    channel = channel_result.scalar_one_or_none()
+    if not channel:
+        raise HTTPException(status_code=422, detail="연결된 채널을 찾을 수 없거나 비활성 상태입니다")
+
+    gateway = None
+    try:
+        gateway = create_gateway(channel, session)
+        await gateway.update_product(listing.external_id, product)
+        listing.sync_status = "SYNCED"
+        listing.last_synced_at = now()
+        listing.last_error = None
+        await session.commit()
+        return ApiResponse(data=ResyncResult(channel_type=channel_type, success=True, sync_status="SYNCED"))
+    except AuthenticationError as exc:
+        channel.is_active = False
+        listing.sync_status = "FAILED"
+        listing.last_error = f"인증 실패 (재연결 필요): {exc}"
+        await session.commit()
+        return ApiResponse(
+            data=ResyncResult(
+                channel_type=channel_type,
+                success=False,
+                sync_status="FAILED",
+                error="인증이 만료됐습니다. 채널을 재연결해 주세요.",
+            )
+        )
+    except ChannelResourceNotFoundError:
+        listing.sync_status = "STALE"
+        listing.last_error = "채널에서 상품을 찾을 수 없음 (404)"
+        await session.commit()
+        return ApiResponse(
+            data=ResyncResult(
+                channel_type=channel_type,
+                success=False,
+                sync_status="STALE",
+                error="채널에서 해당 상품을 찾을 수 없습니다.",
+            )
+        )
+    except Exception as exc:
+        listing.sync_status = "FAILED"
+        listing.last_error = str(exc)
+        await session.commit()
+        return ApiResponse(
+            data=ResyncResult(channel_type=channel_type, success=False, sync_status="FAILED", error=str(exc))
+        )
+    finally:
+        if gateway:
+            with contextlib.suppress(Exception):
+                await gateway.close()
+
+
 # ===== 채널 상품 매칭 (검토 + 확정/거부) =====
 
 

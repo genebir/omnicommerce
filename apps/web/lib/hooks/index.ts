@@ -21,6 +21,8 @@ export {
   type PriceHistoryItem,
   type PriceBatchItem,
   type RevertBatchResult,
+  type ResyncResult,
+  useResyncProduct,
 } from "./use-products";
 export {
   useOrders,

@@ -268,3 +268,21 @@ export function useDeleteProductImage(productId: string) {
     },
   });
 }
+
+export interface ResyncResult {
+  channel_type: string;
+  success: boolean;
+  sync_status: string;
+  error: string | null;
+}
+
+export function useResyncProduct(productId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (channelType: string) =>
+      api.post<ResyncResult>(`/products/${productId}/channels/${channelType}/resync`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products", productId] });
+    },
+  });
+}

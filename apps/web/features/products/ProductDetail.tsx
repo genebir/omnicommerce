@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Edit, Package, Trash2, ImageIcon, Plus, X, ExternalLink } from "lucide-react";
+import { ArrowLeft, Edit, Package, Trash2, ImageIcon, Plus, X, ExternalLink, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ChannelBadge, SyncStatus } from "@/components/patterns";
-import { useDeleteProduct, useAddProductImage, useDeleteProductImage, type ChannelListingInfo } from "@/lib/hooks";
+import { useDeleteProduct, useAddProductImage, useDeleteProductImage, useResyncProduct, type ChannelListingInfo } from "@/lib/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
 import {
@@ -64,6 +64,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const deleteProduct = useDeleteProduct();
   const addImage = useAddProductImage(product?.id ?? "");
   const deleteImage = useDeleteProductImage(product?.id ?? "");
+  const resync = useResyncProduct(product?.id ?? "");
 
   if (!product) {
     return (
@@ -283,28 +284,56 @@ export function ProductDetail({ product }: ProductDetailProps) {
                     </p>
                   ) : (
                     <div className="divide-y divide-border-subtle">
-                      {product.channel_listings.map((cl) => (
-                        <div key={cl.channel_type} className="flex items-center justify-between py-4">
-                          <div className="flex items-center gap-3">
-                            <ChannelBadge code={cl.channel_type} />
-                            <span className="font-mono text-xs text-text-secondary">
-                              #{cl.external_id}
-                            </span>
-                            {cl.external_url && (
-                              <a
-                                href={cl.external_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-text-tertiary hover:text-accent-iris transition-colors"
-                                aria-label="채널 페이지 열기"
-                              >
-                                <ExternalLink className="size-3.5" />
-                              </a>
-                            )}
+                      {product.channel_listings.map((cl) => {
+                        const canResync = cl.sync_status === "FAILED" || cl.sync_status === "STALE";
+                        const isSyncing = resync.isPending && resync.variables === cl.channel_type;
+                        return (
+                          <div key={cl.channel_type} className="flex items-center justify-between py-4">
+                            <div className="flex items-center gap-3">
+                              <ChannelBadge code={cl.channel_type} />
+                              <span className="font-mono text-xs text-text-secondary">
+                                #{cl.external_id}
+                              </span>
+                              {cl.external_url && (
+                                <a
+                                  href={cl.external_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-text-tertiary hover:text-accent-iris transition-colors"
+                                  aria-label="채널 페이지 열기"
+                                >
+                                  <ExternalLink className="size-3.5" />
+                                </a>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <SyncStatus status={isSyncing ? "syncing" : toSyncStatus(cl.sync_status)} />
+                              {canResync && (
+                                <button
+                                  type="button"
+                                  disabled={resync.isPending}
+                                  onClick={async () => {
+                                    try {
+                                      const res = await resync.mutateAsync(cl.channel_type);
+                                      if (res.data?.success) {
+                                        toast.success(t("resyncSuccess", { channel: cl.channel_type }));
+                                      } else {
+                                        toast.error(res.data?.error ?? t("resyncError"));
+                                      }
+                                    } catch {
+                                      toast.error(t("resyncError"));
+                                    }
+                                  }}
+                                  className="flex cursor-pointer items-center gap-1 rounded-lg border border-border-subtle px-2 py-1 text-xs text-text-secondary transition-colors hover:border-accent-iris/50 hover:text-accent-iris disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  <RefreshCw className={`size-3 ${isSyncing ? "animate-spin" : ""}`} />
+                                  {t("resync")}
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <SyncStatus status={toSyncStatus(cl.sync_status)} />
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>
