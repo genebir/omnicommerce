@@ -96,8 +96,23 @@ export function useOrder(id: string) {
 export function useUpdateOrderStatus(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (status: string) =>
-      api.patch<OrderDetail>(`/orders/${id}/status`, { status }),
+    mutationFn: (body: {
+      status: string;
+      tracking_company?: string | null;
+      tracking_number?: string | null;
+    }) => api.patch<OrderDetail>(`/orders/${id}/status`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orders", id] });
+    },
+  });
+}
+
+export function useUpdateOrderTracking(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { tracking_company: string | null; tracking_number: string | null }) =>
+      api.patch<OrderDetail>(`/orders/${id}/tracking`, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["orders", id] });

@@ -71,6 +71,13 @@ class OrderDetailResponse(BaseModel):
 
 class StatusTransitionRequest(BaseModel):
     status: Literal["PREPARING", "SHIPPED", "DELIVERED", "CANCELED", "REFUNDED"]
+    tracking_company: str | None = None
+    tracking_number: str | None = None
+
+
+class TrackingUpdateRequest(BaseModel):
+    tracking_company: str | None = Field(None, max_length=100)
+    tracking_number: str | None = Field(None, max_length=100)
 
 
 class BulkOrderStatusRequest(BaseModel):
@@ -207,6 +214,29 @@ async def transition_order_status(
         raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다")
     try:
         order = await service.transition_status(order_id, body.status)
+        if body.tracking_company is not None or body.tracking_number is not None:
+            order.tracking_company = body.tracking_company
+            order.tracking_number = body.tracking_number
+            await session.commit()
+            await session.refresh(order)
         return ApiResponse(data=order)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.patch("/{order_id}/tracking", response_model=ApiResponse[OrderResponse])
+async def update_order_tracking(
+    order_id: uuid.UUID, body: TrackingUpdateRequest, session: SessionDep, current_user: CurrentUserDep
+):
+    """운송장 번호·택배사 정보를 업데이트한다. 상태 변경 없이 운송장만 수정할 때 사용."""
+    result = await session.execute(
+        select(Order).where(Order.id == order_id, Order.deleted_at.is_(None), Order.user_id == current_user.id)
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다")
+    order.tracking_company = body.tracking_company
+    order.tracking_number = body.tracking_number
+    await session.commit()
+    await session.refresh(order)
+    return ApiResponse(data=order)

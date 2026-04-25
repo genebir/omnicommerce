@@ -26,6 +26,7 @@ export {
   useOrders,
   useOrder,
   useUpdateOrderStatus,
+  useUpdateOrderTracking,
   useBulkUpdateOrderStatus,
   type BulkOrderStatusItemResult,
   type BulkOrderStatusResult,

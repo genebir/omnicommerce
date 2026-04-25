@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils/format";
-import { useUpdateOrderStatus } from "@/lib/hooks";
+import { useUpdateOrderStatus, useUpdateOrderTracking } from "@/lib/hooks";
+import { TrackingDialog } from "./TrackingDialog";
 
 interface OrderItem {
   id: string;
@@ -101,7 +102,10 @@ export function OrderDetail({ order }: OrderDetailProps) {
   const t = useTranslations("orders");
   const tc = useTranslations("common");
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [showTracking, setShowTracking] = useState(false);
+  const [editTracking, setEditTracking] = useState(false);
   const updateStatus = useUpdateOrderStatus(order?.id ?? "");
+  const updateTracking = useUpdateOrderTracking(order?.id ?? "");
 
   if (!order) {
     return (
@@ -172,7 +176,13 @@ export function OrderDetail({ order }: OrderDetailProps) {
                 <DropdownItem
                   key={nextStatus}
                   destructive={isDestructive}
-                  onClick={() => setPendingStatus(nextStatus)}
+                  onClick={() => {
+                    if (nextStatus === "SHIPPED") {
+                      setShowTracking(true);
+                    } else {
+                      setPendingStatus(nextStatus);
+                    }
+                  }}
                 >
                   {t(statusKeyOf(nextStatus))}
                 </DropdownItem>
@@ -180,8 +190,20 @@ export function OrderDetail({ order }: OrderDetailProps) {
             })}
           </DropdownMenu>
         )}
+        {/* 배송 중이면서 운송장이 없으면 입력 유도, 있으면 수정 버튼 */}
+        {order.status === "SHIPPED" && (
+          <button
+            type="button"
+            onClick={() => setEditTracking(true)}
+            className="cursor-pointer rounded-xl border border-border-subtle px-3 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-surface-2"
+          >
+            <Truck className="mr-1.5 inline size-3.5" />
+            {order.trackingNumber ? t("trackingEdit") : t("trackingEnterNow")}
+          </button>
+        )}
       </div>
 
+      {/* 일반 상태 전환 확인 다이얼로그 (SHIPPED 제외) */}
       <ConfirmDialog
         open={!!pendingStatus}
         onOpenChange={(open) => !open && setPendingStatus(null)}
@@ -195,9 +217,47 @@ export function OrderDetail({ order }: OrderDetailProps) {
         loading={updateStatus.isPending}
         onConfirm={async () => {
           if (!pendingStatus) return;
-          await updateStatus.mutateAsync(pendingStatus);
+          await updateStatus.mutateAsync({ status: pendingStatus });
           toast.success(t("statusChangeSuccess"));
           setPendingStatus(null);
+        }}
+      />
+
+      {/* SHIPPED 전환 시 — 운송장 입력 다이얼로그 */}
+      <TrackingDialog
+        open={showTracking}
+        onOpenChange={setShowTracking}
+        loading={updateStatus.isPending}
+        onConfirmWithTracking={async (info) => {
+          await updateStatus.mutateAsync({
+            status: "SHIPPED",
+            tracking_company: info.tracking_company,
+            tracking_number: info.tracking_number,
+          });
+          toast.success(t("statusChangeSuccess"));
+          setShowTracking(false);
+        }}
+        onConfirmWithoutTracking={async () => {
+          await updateStatus.mutateAsync({ status: "SHIPPED" });
+          toast.success(t("statusChangeSuccess"));
+          setShowTracking(false);
+        }}
+      />
+
+      {/* 운송장 수정 다이얼로그 */}
+      <TrackingDialog
+        open={editTracking}
+        onOpenChange={setEditTracking}
+        editOnly
+        initialValues={{
+          tracking_company: order.trackingCompany,
+          tracking_number: order.trackingNumber,
+        }}
+        loading={updateTracking.isPending}
+        onConfirmWithTracking={async (info) => {
+          await updateTracking.mutateAsync(info);
+          toast.success(t("trackingSaveSuccess"));
+          setEditTracking(false);
         }}
       />
 
