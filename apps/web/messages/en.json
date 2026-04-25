@@ -295,7 +295,22 @@
     "statusChangeSuccess": "Order status updated",
     "notFound": "Order not found",
     "deliveredAt": "Delivered at",
-    "canceledAt": "Canceled at"
+    "canceledAt": "Canceled at",
+    "bulkStatusChange": "Bulk status change",
+    "bulkStatusTitle": "Change status for {count} orders",
+    "bulkStatusSelectTarget": "Select target status",
+    "bulkStatusPreview": "Preview changes",
+    "bulkStatusColOrder": "Order #",
+    "bulkStatusColChannel": "Channel",
+    "bulkStatusColCustomer": "Customer",
+    "bulkStatusColCurrent": "Current",
+    "bulkStatusColNext": "Next",
+    "bulkStatusNotAllowed": "Not allowed",
+    "bulkStatusNotAllowedHint": "Cannot transition from current status",
+    "bulkStatusApply": "Apply",
+    "bulkStatusApplied": "{count} orders updated",
+    "bulkStatusPartial": "{updated} updated, {skipped} skipped (invalid transition)",
+    "bulkStatusNoneUpdated": "No orders can be updated. The selected transition is not valid for any of the current statuses."
   },
   "inventory": {
     "title": "Inventory",

@@ -295,7 +295,22 @@
     "statusChangeSuccess": "주문 상태가 변경되었습니다",
     "notFound": "주문을 찾을 수 없습니다",
     "deliveredAt": "배송 완료일시",
-    "canceledAt": "취소일시"
+    "canceledAt": "취소일시",
+    "bulkStatusChange": "상태 일괄 변경",
+    "bulkStatusTitle": "선택한 {count}개 주문 상태 변경",
+    "bulkStatusSelectTarget": "변경할 상태를 선택하세요",
+    "bulkStatusPreview": "이렇게 적용됩니다",
+    "bulkStatusColOrder": "주문번호",
+    "bulkStatusColChannel": "채널",
+    "bulkStatusColCustomer": "주문자",
+    "bulkStatusColCurrent": "현재 상태",
+    "bulkStatusColNext": "변경 후",
+    "bulkStatusNotAllowed": "변경 불가",
+    "bulkStatusNotAllowedHint": "현재 상태에서 이 상태로 변경할 수 없습니다",
+    "bulkStatusApply": "적용",
+    "bulkStatusApplied": "{count}개 주문 상태가 변경되었습니다",
+    "bulkStatusPartial": "{updated}개 변경 완료, {skipped}개 건너뜀 (상태 전이 불가)",
+    "bulkStatusNoneUpdated": "변경 가능한 주문이 없습니다. 현재 상태에서 해당 상태로는 전이할 수 없습니다."
   },
   "inventory": {
     "title": "재고",

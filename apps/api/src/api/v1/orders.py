@@ -2,15 +2,16 @@
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from src.api.v1.schemas import ApiResponse, PaginatedResponse, PaginationMeta
 from src.core.deps import CurrentUserDep, SessionDep
+from src.domain.order.entities import VALID_TRANSITIONS
 from src.infra.db.models.order import Order
 from src.services.order_service import OrderService
 
@@ -72,6 +73,28 @@ class StatusTransitionRequest(BaseModel):
     status: Literal["PREPARING", "SHIPPED", "DELIVERED", "CANCELED", "REFUNDED"]
 
 
+class BulkOrderStatusRequest(BaseModel):
+    order_ids: Annotated[list[uuid.UUID], Field(min_length=1, max_length=200)]
+    target_status: Literal["PREPARING", "SHIPPED", "DELIVERED", "CANCELED", "REFUNDED"]
+
+
+class BulkOrderStatusItemResult(BaseModel):
+    order_id: uuid.UUID
+    external_order_id: str
+    channel_type: str
+    buyer_name: str | None
+    old_status: str
+    new_status: str | None
+    allowed: bool
+    error: str | None = None
+
+
+class BulkOrderStatusResult(BaseModel):
+    updated_count: int
+    skipped_count: int
+    items: list[BulkOrderStatusItemResult]
+
+
 @router.get("", response_model=PaginatedResponse[OrderResponse])
 async def list_orders(
     session: SessionDep,
@@ -116,6 +139,62 @@ async def get_order(order_id: uuid.UUID, session: SessionDep, current_user: Curr
     if not order:
         raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다")
     return ApiResponse(data=order)
+
+
+@router.patch("/bulk/status", response_model=ApiResponse[BulkOrderStatusResult])
+async def bulk_transition_order_status(
+    body: BulkOrderStatusRequest, session: SessionDep, current_user: CurrentUserDep
+):
+    """여러 주문의 상태를 한 번에 변경한다. 전이 불가능한 주문은 건너뛰고 결과에 표시."""
+    result = await session.execute(
+        select(Order).where(
+            Order.id.in_(body.order_ids),
+            Order.deleted_at.is_(None),
+            Order.user_id == current_user.id,
+        )
+    )
+    orders = list(result.scalars().all())
+
+    items: list[BulkOrderStatusItemResult] = []
+    updated = 0
+    skipped = 0
+
+    for order in orders:
+        old_status = order.status
+        allowed = body.target_status in VALID_TRANSITIONS.get(old_status, set())
+        if allowed:
+            order.status = body.target_status
+            updated += 1
+            items.append(
+                BulkOrderStatusItemResult(
+                    order_id=order.id,
+                    external_order_id=order.external_order_id,
+                    channel_type=order.channel_type,
+                    buyer_name=order.buyer_name,
+                    old_status=old_status,
+                    new_status=body.target_status,
+                    allowed=True,
+                )
+            )
+        else:
+            skipped += 1
+            items.append(
+                BulkOrderStatusItemResult(
+                    order_id=order.id,
+                    external_order_id=order.external_order_id,
+                    channel_type=order.channel_type,
+                    buyer_name=order.buyer_name,
+                    old_status=old_status,
+                    new_status=None,
+                    allowed=False,
+                    error=f"'{old_status}' 상태에서 '{body.target_status}'으로 변경할 수 없습니다",
+                )
+            )
+
+    await session.commit()
+    return ApiResponse(
+        data=BulkOrderStatusResult(updated_count=updated, skipped_count=skipped, items=items)
+    )
 
 
 @router.patch("/{order_id}/status", response_model=ApiResponse[OrderResponse])

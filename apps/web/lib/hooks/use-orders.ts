@@ -105,4 +105,32 @@ export function useUpdateOrderStatus(id: string) {
   });
 }
 
+export interface BulkOrderStatusItemResult {
+  order_id: string;
+  external_order_id: string;
+  channel_type: string;
+  buyer_name: string | null;
+  old_status: string;
+  new_status: string | null;
+  allowed: boolean;
+  error: string | null;
+}
+
+export interface BulkOrderStatusResult {
+  updated_count: number;
+  skipped_count: number;
+  items: BulkOrderStatusItemResult[];
+}
+
+export function useBulkUpdateOrderStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { order_ids: string[]; target_status: string }) =>
+      api.patch<BulkOrderStatusResult>("/orders/bulk/status", body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
+}
+
 export type { Order, OrderDetail, OrderItemDetail, OrdersPage };

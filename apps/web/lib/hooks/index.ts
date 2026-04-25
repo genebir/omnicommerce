@@ -22,7 +22,14 @@ export {
   type PriceBatchItem,
   type RevertBatchResult,
 } from "./use-products";
-export { useOrders, useOrder, useUpdateOrderStatus } from "./use-orders";
+export {
+  useOrders,
+  useOrder,
+  useUpdateOrderStatus,
+  useBulkUpdateOrderStatus,
+  type BulkOrderStatusItemResult,
+  type BulkOrderStatusResult,
+} from "./use-orders";
 export {
   useInventory,
   useUpdateInventory,
