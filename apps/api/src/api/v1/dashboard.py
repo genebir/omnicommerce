@@ -105,6 +105,7 @@ async def get_dashboard_stats(session: SessionDep, current_user: CurrentUserDep)
 @router.get("/sales", response_model=ApiResponse[SalesResponse])
 async def get_sales_stats(
     session: SessionDep,
+    current_user: CurrentUserDep,
     months: int = Query(7, ge=1, le=24, description="최근 N개월"),
 ):
     """월별 매출·주문 수 통계."""
@@ -121,6 +122,7 @@ async def get_sales_stats(
         )
         .where(
             Order.deleted_at.is_(None),
+            Order.user_id == current_user.id,
             Order.created_at >= start_date,
             Order.status.notin_(["CANCELED", "REFUNDED"]),
         )
@@ -161,13 +163,17 @@ class ActivityResponse(BaseModel):
 @router.get("/activity", response_model=ApiResponse[ActivityResponse])
 async def get_recent_activity(
     session: SessionDep,
+    current_user: CurrentUserDep,
     limit: int = Query(10, ge=1, le=50),
 ):
     """최근 활동 내역 (주문·상품 변경 기반)."""
     activities: list[ActivityItem] = []
 
     recent_orders = await session.execute(
-        select(Order).where(Order.deleted_at.is_(None)).order_by(Order.created_at.desc()).limit(limit)
+        select(Order)
+        .where(Order.deleted_at.is_(None), Order.user_id == current_user.id)
+        .order_by(Order.created_at.desc())
+        .limit(limit)
     )
     for order in recent_orders.scalars().all():
         activities.append(
@@ -180,7 +186,10 @@ async def get_recent_activity(
         )
 
     recent_products = await session.execute(
-        select(Product).where(Product.deleted_at.is_(None)).order_by(Product.updated_at.desc()).limit(limit)
+        select(Product)
+        .where(Product.deleted_at.is_(None), Product.user_id == current_user.id)
+        .order_by(Product.updated_at.desc())
+        .limit(limit)
     )
     for product in recent_products.scalars().all():
         activities.append(

@@ -149,9 +149,7 @@ async def get_order(order_id: uuid.UUID, session: SessionDep, current_user: Curr
 
 
 @router.patch("/bulk/status", response_model=ApiResponse[BulkOrderStatusResult])
-async def bulk_transition_order_status(
-    body: BulkOrderStatusRequest, session: SessionDep, current_user: CurrentUserDep
-):
+async def bulk_transition_order_status(body: BulkOrderStatusRequest, session: SessionDep, current_user: CurrentUserDep):
     """여러 주문의 상태를 한 번에 변경한다. 전이 불가능한 주문은 건너뛰고 결과에 표시."""
     result = await session.execute(
         select(Order).where(
@@ -199,9 +197,7 @@ async def bulk_transition_order_status(
             )
 
     await session.commit()
-    return ApiResponse(
-        data=BulkOrderStatusResult(updated_count=updated, skipped_count=skipped, items=items)
-    )
+    return ApiResponse(data=BulkOrderStatusResult(updated_count=updated, skipped_count=skipped, items=items))
 
 
 @router.patch("/{order_id}/status", response_model=ApiResponse[OrderResponse])

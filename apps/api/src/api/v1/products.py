@@ -1199,7 +1199,7 @@ async def list_pending_matches(session: SessionDep, current_user: CurrentUserDep
         item_price = raw.get("price") or float(current_p.price)
         try:
             item_price_dec = float(item_price)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             item_price_dec = float(current_p.price)
 
         # 자기 자신(현재 가리키는 product) 제외하고 다른 후보 추천
@@ -1287,7 +1287,7 @@ async def decline_match(
     new_sku = f"{listing.channel_type}-{sku_base}"[:100]
     try:
         price = float(raw.get("price") or current_p.price)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         price = float(current_p.price)
 
     new_product = Product(
