@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 interface StatCardProps {
@@ -15,6 +16,7 @@ interface StatCardProps {
 }
 
 export function StatCard({ label, value, icon: Icon, href, urgent, trend }: StatCardProps) {
+  const t = useTranslations("common");
   const content = (
     <>
       <div className="flex items-center justify-between">
@@ -47,7 +49,7 @@ export function StatCard({ label, value, icon: Icon, href, urgent, trend }: Stat
       )}
       {href && (
         <p className="mt-2 text-xs text-text-tertiary group-hover:text-accent-iris transition-colors">
-          자세히 보기 →
+          {t("viewMore")}
         </p>
       )}
     </>

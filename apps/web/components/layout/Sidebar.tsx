@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useLowStock, usePendingMatches } from "@/lib/hooks";
+import { useLowStock, usePendingMatches, useSyncIssues } from "@/lib/hooks";
 
 interface NavItem {
   href: string;
@@ -63,9 +63,11 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Side
   // 인증 후에만 의미 있는 카운트 — 미인증 상태에선 비어있어 안전.
   const { data: pendingMatches } = usePendingMatches();
   const { data: lowStock } = useLowStock(10, 100);
+  const { data: syncIssues } = useSyncIssues();
 
   const pendingCount = pendingMatches?.length ?? 0;
   const lowStockCount = lowStock?.length ?? 0;
+  const syncIssueCount = syncIssues?.total ?? 0;
 
   const badgesByHref: Record<string, NavBadge | undefined> = {
     "/products":
@@ -82,6 +84,14 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Side
             count: lowStockCount,
             tone: "error",
             ariaLabel: t("badgeLowStock", { count: lowStockCount }),
+          }
+        : undefined,
+    "/channels":
+      syncIssueCount > 0
+        ? {
+            count: syncIssueCount,
+            tone: "error",
+            ariaLabel: t("badgeSyncIssues", { count: syncIssueCount }),
           }
         : undefined,
   };

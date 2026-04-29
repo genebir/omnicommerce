@@ -22,7 +22,8 @@
     "error": "Error",
     "errorMessage": "Something went wrong",
     "tryAgain": "Try again",
-    "clearFilter": "Clear filter"
+    "clearFilter": "Clear filter",
+    "viewMore": "View more →"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -39,6 +40,7 @@
     "collapseSidebar": "Collapse sidebar",
     "badgePendingMatches": "{count} pending matches",
     "badgeLowStock": "{count} low-stock items",
+    "badgeSyncIssues": "{count} sync issues",
     "adminSettings": "Admin Settings"
   },
   "topbar": {
@@ -442,7 +444,12 @@
     "syncColProduct": "Product",
     "syncColChannel": "Channel",
     "syncColStatus": "Status",
-    "syncIssueLastUpdated": "As of {date}"
+    "syncIssueLastUpdated": "As of {date}",
+    "syncStatusFailed": "Failed",
+    "syncStatusStale": "Out of sync",
+    "syncStatusPending": "Pending",
+    "syncResyncAction": "Resync",
+    "syncProductDetailLabel": "View product detail"
   },
   "settings": {
     "title": "Settings",

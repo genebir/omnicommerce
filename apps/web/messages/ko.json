@@ -22,7 +22,8 @@
     "error": "오류",
     "errorMessage": "문제가 발생했습니다",
     "tryAgain": "다시 시도",
-    "clearFilter": "필터 해제"
+    "clearFilter": "필터 해제",
+    "viewMore": "자세히 보기 →"
   },
   "nav": {
     "dashboard": "대시보드",
@@ -39,6 +40,7 @@
     "collapseSidebar": "사이드바 접기",
     "badgePendingMatches": "검토 대기 {count}건",
     "badgeLowStock": "재고 부족 {count}건",
+    "badgeSyncIssues": "동기화 이슈 {count}건",
     "adminSettings": "관리자 설정"
   },
   "topbar": {
@@ -442,7 +444,12 @@
     "syncColProduct": "상품",
     "syncColChannel": "채널",
     "syncColStatus": "상태",
-    "syncIssueLastUpdated": "{date} 기준"
+    "syncIssueLastUpdated": "{date} 기준",
+    "syncStatusFailed": "실패",
+    "syncStatusStale": "정보 불일치",
+    "syncStatusPending": "대기 중",
+    "syncResyncAction": "재동기화",
+    "syncProductDetailLabel": "상품 상세 보기"
   },
   "settings": {
     "title": "설정",

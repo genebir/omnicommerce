@@ -8,12 +8,6 @@ import { ChannelBadge } from "@/components/patterns";
 import { useSyncIssues, useResyncProduct } from "@/lib/hooks";
 import { formatDate } from "@/lib/utils/format";
 
-const STATUS_LABELS: Record<string, string> = {
-  FAILED: "실패",
-  STALE: "정보 불일치",
-  PENDING: "대기 중",
-};
-
 const STATUS_COLORS: Record<string, string> = {
   FAILED: "text-state-error bg-state-error/10",
   STALE: "text-state-warn bg-state-warn/10",
@@ -21,7 +15,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function ResyncButton({ productId, channelType, onDone }: { productId: string; channelType: string; onDone: () => void }) {
-  const t = useTranslations("products");
+  const tProducts = useTranslations("products");
+  const tChannels = useTranslations("channels");
   const resync = useResyncProduct(productId);
 
   return (
@@ -32,13 +27,13 @@ function ResyncButton({ productId, channelType, onDone }: { productId: string; c
         try {
           const res = await resync.mutateAsync(channelType);
           if (res.data?.success) {
-            toast.success(t("resyncSuccess", { channel: channelType }));
+            toast.success(tProducts("resyncSuccess", { channel: channelType }));
             onDone();
           } else {
-            toast.error(res.data?.error ?? t("resyncError"));
+            toast.error(res.data?.error ?? tProducts("resyncError"));
           }
         } catch {
-          toast.error(t("resyncError"));
+          toast.error(tProducts("resyncError"));
         }
       }}
       className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border-subtle px-2.5 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-accent-iris/50 hover:text-accent-iris disabled:cursor-not-allowed disabled:opacity-50"
@@ -48,10 +43,16 @@ function ResyncButton({ productId, channelType, onDone }: { productId: string; c
       ) : (
         <RefreshCw className="size-3" />
       )}
-      재동기화
+      {tChannels("syncResyncAction")}
     </button>
   );
 }
+
+const STATUS_LABEL_KEYS: Record<string, "syncStatusFailed" | "syncStatusStale" | "syncStatusPending"> = {
+  FAILED: "syncStatusFailed",
+  STALE: "syncStatusStale",
+  PENDING: "syncStatusPending",
+};
 
 export function SyncIssuePanel() {
   const t = useTranslations("channels");
@@ -123,7 +124,9 @@ export function SyncIssuePanel() {
                 <span
                   className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[item.sync_status] ?? "text-text-tertiary bg-bg-surface-2"}`}
                 >
-                  {STATUS_LABELS[item.sync_status] ?? item.sync_status}
+                  {STATUS_LABEL_KEYS[item.sync_status]
+                    ? t(STATUS_LABEL_KEYS[item.sync_status])
+                    : item.sync_status}
                 </span>
               </span>
 
@@ -131,7 +134,7 @@ export function SyncIssuePanel() {
                 <Link
                   href={`/products/${item.product_id}?tab=channels`}
                   className="rounded-lg p-1.5 text-text-tertiary transition-colors hover:text-accent-iris"
-                  aria-label="상품 상세 보기"
+                  aria-label={t("syncProductDetailLabel")}
                 >
                   <ExternalLink className="size-3.5" />
                 </Link>
