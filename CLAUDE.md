@@ -977,10 +977,84 @@ make doctor   # 아래 전부 수행
 - [x] **채널 상품 import 로직 개선**: 이미 등록된 상품을 재가져올 때 SKU 매칭 → 기존 상품에 `ChannelListing` 추가(external_url, last_synced_at 갱신), savepoint 내부에서 중복 체크로 트랜잭션 안전성 강화
 - [x] **i18n 키 추가** (`ko.json`/`en.json`): `deleteChannelFailed`, `deleteAuthExpired`, `goToChannels` 3키 추가
 
+### 16.1.1 자율 정리 사이클 (2026-04-29 / 페이즈 1–7)
+
+직전 세션이 머신 A·B 양쪽에서 동시에 진행돼 `main` 브랜치가 11(로컬)↔6(원격) 커밋으로 diverged된 상태에서 시작. 다음을 머지·검증·푸시 완료:
+
+- [x] **페이즈 1 — 브랜치 통합**: 머신 A/B 동시 작업 머지. 실제 충돌은 `apps/api/src/api/v1/dashboard.py` 한 곳(import 단순 누락) — 자동 머지된 14개 파일은 lint/타입/테스트로 검증.
+- [x] **페이즈 2 — 대시보드 user 스코핑 보안 패치**: `/dashboard/sales`·`/dashboard/activity`에 `Order.user_id`/`Product.user_id` 필터와 `CurrentUserDep` 누락 — 다른 사용자 매출/활동 노출 차단. `tests/integration/test_dashboard.py` 5건 (인증 401 + 사용자 간 격리).
+- [x] **페이즈 3 — 사이드바 동기화 이슈 배지 + i18n 일관성**: `Sidebar`에 `/channels` 배지 추가(`useSyncIssues` 연동, 대시보드 카드와 일치). `SyncIssuePanel`의 상태 라벨/`재동기화`/`aria-label` i18n 키화. `StatCard`의 `자세히 보기 →` `common.viewMore` 키화. `nav.badgeSyncIssues`, `channels.syncStatus*` 키 추가.
+- [x] **페이즈 4 — 일괄 수정 다이얼로그 단위·실패 카운트 i18n**: `BulkPriceEditDialog`/`BulkInventoryEditDialog`의 `원`·`%`·`개`·`라운드 단위`·`${ch} ${n}건` 하드코딩을 `unitWon`/`unitPercent`/`unitPiece`/`roundUnit`/`channelFailItem` 키로 분리. 영어 모드 폴리싱.
+- [x] **페이즈 5 — 매출 차트 시작월 계산 버그 수정**: `(months-1)*30일` 빼기 방식이 31일 달 연속 구간에서 한 달 어긋날 수 있던 문제 — `_months_ago_first_day(year*12+month 정수 연산)` 헬퍼로 정확화. 5개 경계 케이스 단위 테스트 (`tests/unit/test_dashboard_helpers.py`).
+- [x] **페이즈 6 — `inventory` 엔드포인트 인증/소유권 보안 패치**: `GET /{sku}`·`GET /product/{id}`·`PUT`·`POST /allocate`·`POST /deallocate` 5개 엔드포인트가 **모두 인증 없음**이었음 — 누구나 다른 사용자 재고 조회/수정/할당 가능. `_ensure_sku_owned`, `_ensure_product_owned` 헬퍼로 user 검증 일원화. `tests/integration/test_inventory_security.py` 2건.
+- [x] **페이즈 7 — `jobs` 큐 API 인증 보안 패치**: `POST /jobs`(임의 task 큐잉)·`GET /jobs/{id}`(작업 정보 조회)에 `CurrentUserDep` 추가. `tests/integration/test_jobs_auth.py` 2건. 부수: 기존 에러 메시지 mojibake 수정. NB — 큐 task params 안의 user 식별자 검증은 워커 인프라가 다뤄야 하는 별개 작업, 이번 패치는 외부 노출 인증만 막는 1차 방어선.
+
+**누적 효과**: 회귀 테스트 14건 신규 (백엔드 96건 통과), 보안 패치 3건, 잠재 버그 1건, UX/i18n 정리 2건. `make doctor` 신규 회귀 없음.
+
 ### 16.2 미구현 (TODO)
+
+#### 16.2.1 즉시 후보 (다음 자율 페이즈 우선순위)
+
+다음 세션을 시작할 때 이 표를 참조해 같은 흐름을 이어갈 수 있다. 위에서 아래로 갈수록 가치가 작거나 시간이 더 든다.
+
+| 우선 | 영역 | 작업 | 산출 위치 |
+|---|---|---|---|
+| 1 | 보안 audit (마무리) | `config.py`·`admin.py` 라우터 권한 검사 — `_: CurrentUserDep`로 인증만 강제하고 일반 사용자가 모든 설정을 조회/수정 가능한지 확인. 필요 시 `is_admin` 플래그 또는 별도 권한 컬럼 도입. | `apps/api/src/api/v1/admin.py`, `users` 모델 |
+| 2 | 사용자 1순위 UX | `BulkPriceEditDialog` `cost_price` 모드에서 미리보기 칸이 `—`로 표시되는 문제 — 백엔드 `Product`에 `cost_price`가 있는지 먼저 확인하고, 있으면 `ProductsTable` → `selectedProducts`에 `cost_price` 포함시키도록 props 인터페이스 확장. | `apps/web/features/products/{ProductsTable,BulkPriceEditDialog}.tsx`, `lib/hooks/use-products.ts` |
+| 3 | i18n 폴리싱 | `CommandPalette` (`label`/`section` 8개 한글 하드코딩), `SyncStatus` (4상태 라벨), `ProductsTable.tsx:146` `aria-label="삭제"`, `Topbar.tsx:38` `aria-label="메뉴"`, `SettingHistoryDrawer.tsx:59` `"닫기"`. 영어 모드 깨짐 잡기. | `apps/web/components/patterns/{CommandPalette,SyncStatus}.tsx` 외 |
+| 4 | 개발자 경험 | `pnpm lint`가 `storybook-static`·`.next`까지 검사해 12000+ warning. `eslint.config.*`에 `ignores` 추가. | `apps/web/eslint.config.*` |
+| 5 | (장기) | 다중 창고(WMS), B2B(세금계산서), `packages/shared-types/` (OpenAPI → TS 자동 생성) — v2 범위. | — |
+
+#### 16.2.2 v2 범위 (보류)
+
 - [ ] 다중 창고(WMS) 연동은 v2 범위
 - [ ] B2B(세금계산서) 발행은 별도 모듈로 분리 예정
 - [ ] `packages/shared-types/` — OpenAPI → TS 타입 자동 생성
+
+### 16.3 다른 머신에서 이어서 작업하기 (Harness)
+
+이 프로젝트는 §15 원칙대로 **선언적·결정적 환경**을 지향한다. 새 머신에서 클론 후 다음 순서를 그대로 따라가면 된다.
+
+#### 16.3.1 첫 셋업 (한 번만)
+
+```bash
+git clone git@github.com:genebir/omnicommerce.git && cd omnicommerce
+cp .env.example .env                 # 부트스트랩 환경변수 (§9.2)
+docker compose up -d                 # PostgreSQL 18 + Redis 7
+make setup                           # = python setup.py (DB 유저/DB 생성 → 마이그레이션 → 시드)
+cd apps/web && pnpm install && cd ../..
+```
+
+**환경 고정 파일** (다 따로 수정하지 말 것):
+- `.python-version` → 3.14.x (uv가 자동으로 동일 버전 사용)
+- `apps/web/.nvmrc` → 24.14.0 + `package.json:engines` + `.npmrc(engine-strict)`
+- `uv.lock` / `apps/web/pnpm-lock.yaml` → 락파일 커밋 필수, 머신 간 동일 의존성 보장
+
+#### 16.3.2 이어서 작업할 때 (매 세션 시작)
+
+```bash
+git fetch origin && git pull --ff-only origin main      # 새 머신 동기화
+make doctor                                              # 환경/문서 정합성 검증 (§15.5)
+make migrate                                             # alembic upgrade head — 누락 마이그레이션 적용
+make test                                                # 백엔드 회귀 테스트 (96건 통과 기준)
+cd apps/web && pnpm tsc --noEmit                         # 프론트 타입 체크
+```
+
+위 4개 명령이 모두 통과하지 않으면 **새 코드를 쓰기 전에 먼저 환경 문제를 잡는다**. 프로젝트 컨텍스트는 다음을 읽어 즉시 복원된다:
+
+1. `CLAUDE.md` (이 문서) — 작업 규칙·아키텍처·구현 현황 (§16.1)
+2. `FRONTEND.md` — 프론트엔드 디자인 토큰·컴포넌트·행동 규칙
+3. `git log --oneline -20` — 최근 진행 흐름
+
+#### 16.3.3 이전 세션과 동일한 자율 사이클 재개
+
+다음 세션이 *"이어서 자율로 진행"*을 받으면 §16.2.1 표의 **우선순위 1**부터 같은 패턴(계획 → 구현 → `ruff/test/tsc` 검증 → 커밋 → 푸시)으로 진행하면 된다. 한 페이즈 완료 시점마다 §16.1.1 형식으로 본 문서에 한 줄 추가해 다음 세션에도 끊김 없이 흐름을 이어 줄 것.
+
+**페이즈 분리 원칙** (직전 세션에서 검증된 합의):
+- 한 페이즈 = 한 가지 종류의 변경 (보안 / UX / 버그 / i18n) — 섞지 말 것.
+- 각 페이즈마다 회귀 테스트 1건 이상 추가, 백엔드 `pytest` + 프론트 `tsc` 통과 확인 후 커밋.
+- 푸시 전 `make doctor` 한 번 더 — 다른 머신에서 즉시 이어가도 깨끗한 상태.
+- 보안 패치는 별도 페이즈로 분리. 다른 변경(스타일·리팩터)과 묶지 말 것 — 검토와 롤백이 어렵다.
 
 ---
 
