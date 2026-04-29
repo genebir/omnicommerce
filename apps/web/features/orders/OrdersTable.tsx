@@ -1,13 +1,17 @@
 "use client";
 
-import { createColumnHelper } from "@tanstack/react-table";
-import { ShoppingCart, Loader2, Search } from "lucide-react";
+import { useState } from "react";
+import { createColumnHelper, type RowSelectionState } from "@tanstack/react-table";
+import { ArrowRightLeft, Loader2, Search, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { DataTable, ChannelBadge } from "@/components/patterns";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
 import { useOrders } from "@/lib/hooks";
+import { BulkOrderStatusDialog } from "./BulkOrderStatusDialog";
+import type { OrderRow as BulkOrderRow } from "./BulkOrderStatusDialog";
 
 interface OrderRow {
   id: string;
@@ -35,6 +39,9 @@ export function OrdersTable() {
   const tc = useTranslations("common");
   const [q, setQ] = useQueryState("q", { defaultValue: "" });
   const [statusFilter, setStatusFilter] = useQueryState("status", { defaultValue: "" });
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [showBulkStatus, setShowBulkStatus] = useState(false);
+
   const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = useOrders({
     q: q || undefined,
     status: statusFilter || undefined,
@@ -53,7 +60,36 @@ export function OrdersTable() {
       })),
     ) ?? [];
 
+  const selectedCount = Object.keys(rowSelection).length;
+  const selectedOrders: BulkOrderRow[] = Object.keys(rowSelection)
+    .map((idx) => {
+      const o = orders[Number(idx)];
+      return o
+        ? { id: o.id, orderNumber: o.orderNumber, channel: o.channel, customerName: o.customerName, status: o.status }
+        : null;
+    })
+    .filter(Boolean) as BulkOrderRow[];
+
   const columns = [
+    columnHelper.display({
+      id: "select",
+      size: 40,
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllRowsSelected()}
+          onCheckedChange={(v) => table.toggleAllRowsSelected(!!v)}
+          aria-label={tc("selectAll")}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(v) => row.toggleSelected(!!v)}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={tc("selectRow")}
+        />
+      ),
+    }),
     columnHelper.accessor("orderNumber", {
       header: t("columnOrderNumber"),
       size: 160,
@@ -151,13 +187,33 @@ export function OrdersTable() {
           <option value="REFUNDED">{t("statusRefunded")}</option>
         </select>
       </div>
+
+      {selectedCount > 0 && (
+        <div className="flex items-center gap-3 rounded-xl bg-accent-iris/10 px-4 py-2">
+          <span className="text-sm font-medium text-accent-iris">
+            {tc("selected", { count: selectedCount })}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowBulkStatus(true)}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-accent-iris transition-colors hover:bg-accent-iris/15"
+          >
+            <ArrowRightLeft className="size-3.5" />
+            {t("bulkStatusChange")}
+          </button>
+        </div>
+      )}
+
       <DataTable
         columns={columns}
         data={orders}
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
         emptyIcon={<ShoppingCart className="size-12" />}
         emptyMessage={t("empty")}
         emptyHint={t("emptyHint")}
       />
+
       {hasNextPage && (
         <div className="flex justify-center pt-2">
           <button
@@ -174,6 +230,13 @@ export function OrdersTable() {
           </button>
         </div>
       )}
+
+      <BulkOrderStatusDialog
+        open={showBulkStatus}
+        onOpenChange={setShowBulkStatus}
+        selectedOrders={selectedOrders}
+        onApplied={() => setRowSelection({})}
+      />
     </div>
   );
 }

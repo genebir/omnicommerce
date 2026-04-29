@@ -21,7 +21,8 @@
     "backToDashboard": "대시보드로 돌아가기",
     "error": "오류",
     "errorMessage": "문제가 발생했습니다",
-    "tryAgain": "다시 시도"
+    "tryAgain": "다시 시도",
+    "clearFilter": "필터 해제"
   },
   "nav": {
     "dashboard": "대시보드",
@@ -160,6 +161,9 @@
     "columnChannels": "판매 채널",
     "channelListings": "채널 등록 현황",
     "noListings": "등록된 채널이 없습니다",
+    "resync": "재동기화",
+    "resyncSuccess": "{channel} 채널 동기화 완료",
+    "resyncError": "채널 동기화에 실패했습니다",
     "productInfo": "상품 정보",
     "inventoryInfo": "재고 정보",
     "status": "상태",
@@ -302,6 +306,19 @@
     "recipientPhone": "연락처",
     "recipientAddress": "주소",
     "trackingNumber": "운송장 번호",
+    "trackingCompany": "택배사",
+    "trackingDialogTitle": "운송장 정보 입력",
+    "trackingDialogDesc": "운송장 번호를 입력하면 배송 추적이 쉬워집니다",
+    "trackingShipWithTracking": "운송장 입력하고 배송 처리",
+    "trackingShipWithoutTracking": "운송장 없이 배송 처리",
+    "trackingEditTitle": "운송장 정보 수정",
+    "trackingEnterNow": "운송장 입력",
+    "trackingEdit": "운송장 수정",
+    "trackingSaveSuccess": "운송장 정보가 저장됐습니다",
+    "trackingSaveError": "운송장 저장에 실패했습니다",
+    "trackingCompanyPlaceholder": "택배사를 선택하세요",
+    "trackingNumberPlaceholder": "예) 123456789012",
+    "trackingOptional": "나중에 입력",
     "productName": "상품명",
     "columnSku": "SKU",
     "quantity": "수량",
@@ -321,7 +338,22 @@
     "statusChangeSuccess": "주문 상태가 변경되었습니다",
     "notFound": "주문을 찾을 수 없습니다",
     "deliveredAt": "배송 완료일시",
-    "canceledAt": "취소일시"
+    "canceledAt": "취소일시",
+    "bulkStatusChange": "상태 일괄 변경",
+    "bulkStatusTitle": "선택한 {count}개 주문 상태 변경",
+    "bulkStatusSelectTarget": "변경할 상태를 선택하세요",
+    "bulkStatusPreview": "이렇게 적용됩니다",
+    "bulkStatusColOrder": "주문번호",
+    "bulkStatusColChannel": "채널",
+    "bulkStatusColCustomer": "주문자",
+    "bulkStatusColCurrent": "현재 상태",
+    "bulkStatusColNext": "변경 후",
+    "bulkStatusNotAllowed": "변경 불가",
+    "bulkStatusNotAllowedHint": "현재 상태에서 이 상태로 변경할 수 없습니다",
+    "bulkStatusApply": "적용",
+    "bulkStatusApplied": "{count}개 주문 상태가 변경되었습니다",
+    "bulkStatusPartial": "{updated}개 변경 완료, {skipped}개 건너뜀 (상태 전이 불가)",
+    "bulkStatusNoneUpdated": "변경 가능한 주문이 없습니다. 현재 상태에서 해당 상태로는 전이할 수 없습니다."
   },
   "inventory": {
     "title": "재고",
@@ -335,7 +367,8 @@
     "columnTotal": "합계",
     "adjustStock": "재고 조정",
     "updateSuccess": "재고가 수정되었습니다",
-    "updateError": "재고 수정에 실패했습니다"
+    "updateError": "재고 수정에 실패했습니다",
+    "lowStockFilter": "재고 부족 항목만 표시 중 (가용 재고 10개 미만)"
   },
   "channels": {
     "title": "채널 연결",
@@ -401,7 +434,15 @@
     "tunnelCopied": "URI 복사됨",
     "tunnelSetupLink": "Cafe24 개발자센터 열기",
     "tunnelStep2": "등록이 완료되면 아래 버튼을 눌러 연결하세요.",
-    "tunnelPermanent": "영구 URL (항상 사용 가능)"
+    "tunnelPermanent": "영구 URL (항상 사용 가능)",
+    "syncIssues": "동기화 이슈",
+    "syncIssueCount": "{count}개의 동기화 문제가 있습니다",
+    "syncAllGood": "모든 채널이 정상 동기화 중입니다",
+    "syncAllGoodDesc": "FAILED 또는 STALE 상태의 상품이 없습니다",
+    "syncColProduct": "상품",
+    "syncColChannel": "채널",
+    "syncColStatus": "상태",
+    "syncIssueLastUpdated": "{date} 기준"
   },
   "settings": {
     "title": "설정",

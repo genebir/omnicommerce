@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { type RowSelectionState, createColumnHelper } from "@tanstack/react-table";
-import { Warehouse, Loader2, Edit, Boxes } from "lucide-react";
+import { Warehouse, Loader2, Edit, Boxes, AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useQueryState, parseAsBoolean } from "nuqs";
 import { toast } from "sonner";
 import { DataTable } from "@/components/patterns";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,6 +46,8 @@ export function InventoryTable() {
   const updateInventory = useUpdateInventory();
   const bulkEdit = useBulkEditInventory();
 
+  const [lowStock, setLowStock] = useQueryState("lowStock", parseAsBoolean.withDefault(false));
+
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [showBulk, setShowBulk] = useState(false);
   const [editItem, setEditItem] = useState<InventoryRow | null>(null);
@@ -59,7 +62,7 @@ export function InventoryTable() {
     return map;
   }, [productsPages]);
 
-  const rows: InventoryRow[] =
+  const allRows: InventoryRow[] =
     data?.data?.map((inv) => ({
       id: String(inv.id),
       productId: String(inv.product_id),
@@ -70,6 +73,8 @@ export function InventoryTable() {
       total: inv.total_quantity,
       raw: inv,
     })) ?? [];
+
+  const rows = lowStock ? allRows.filter((r) => r.available < 10) : allRows;
 
   async function handleSaveQuantity() {
     if (!editItem) return;
@@ -180,6 +185,23 @@ export function InventoryTable() {
 
   return (
     <div className="space-y-4">
+      {lowStock && (
+        <div className="flex items-center justify-between rounded-xl bg-state-warn/10 px-4 py-2.5">
+          <div className="flex items-center gap-2 text-sm text-state-warn">
+            <AlertTriangle className="size-4 shrink-0" />
+            <span>{t("lowStockFilter")}</span>
+            <span className="font-bold">({rows.length})</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLowStock(null)}
+            className="cursor-pointer text-xs text-state-warn underline underline-offset-2 hover:opacity-70"
+          >
+            {tc("clearFilter")}
+          </button>
+        </div>
+      )}
+
       {selectedCount > 0 && (
         <div className="flex items-center gap-3 rounded-xl bg-accent-iris/10 px-4 py-2">
           <span className="text-sm font-medium text-accent-iris">

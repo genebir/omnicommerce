@@ -21,7 +21,8 @@
     "backToDashboard": "Back to dashboard",
     "error": "Error",
     "errorMessage": "Something went wrong",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "clearFilter": "Clear filter"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -160,6 +161,9 @@
     "columnChannels": "Channels",
     "channelListings": "Channel Listings",
     "noListings": "No channel listings",
+    "resync": "Resync",
+    "resyncSuccess": "{channel} channel sync complete",
+    "resyncError": "Channel sync failed",
     "productInfo": "Product Info",
     "inventoryInfo": "Inventory Info",
     "status": "Status",
@@ -302,6 +306,19 @@
     "recipientPhone": "Phone",
     "recipientAddress": "Address",
     "trackingNumber": "Tracking #",
+    "trackingCompany": "Carrier",
+    "trackingDialogTitle": "Enter tracking info",
+    "trackingDialogDesc": "Adding a tracking number helps track shipments easily",
+    "trackingShipWithTracking": "Ship with tracking info",
+    "trackingShipWithoutTracking": "Ship without tracking",
+    "trackingEditTitle": "Edit tracking info",
+    "trackingEnterNow": "Enter tracking",
+    "trackingEdit": "Edit tracking",
+    "trackingSaveSuccess": "Tracking info saved",
+    "trackingSaveError": "Failed to save tracking info",
+    "trackingCompanyPlaceholder": "Select carrier",
+    "trackingNumberPlaceholder": "e.g. 123456789012",
+    "trackingOptional": "Skip for now",
     "productName": "Product",
     "columnSku": "SKU",
     "quantity": "Qty",
@@ -321,7 +338,22 @@
     "statusChangeSuccess": "Order status updated",
     "notFound": "Order not found",
     "deliveredAt": "Delivered at",
-    "canceledAt": "Canceled at"
+    "canceledAt": "Canceled at",
+    "bulkStatusChange": "Bulk status change",
+    "bulkStatusTitle": "Change status for {count} orders",
+    "bulkStatusSelectTarget": "Select target status",
+    "bulkStatusPreview": "Preview changes",
+    "bulkStatusColOrder": "Order #",
+    "bulkStatusColChannel": "Channel",
+    "bulkStatusColCustomer": "Customer",
+    "bulkStatusColCurrent": "Current",
+    "bulkStatusColNext": "Next",
+    "bulkStatusNotAllowed": "Not allowed",
+    "bulkStatusNotAllowedHint": "Cannot transition from current status",
+    "bulkStatusApply": "Apply",
+    "bulkStatusApplied": "{count} orders updated",
+    "bulkStatusPartial": "{updated} updated, {skipped} skipped (invalid transition)",
+    "bulkStatusNoneUpdated": "No orders can be updated. The selected transition is not valid for any of the current statuses."
   },
   "inventory": {
     "title": "Inventory",
@@ -335,7 +367,8 @@
     "columnTotal": "Total",
     "adjustStock": "Adjust Stock",
     "updateSuccess": "Stock updated",
-    "updateError": "Failed to update stock"
+    "updateError": "Failed to update stock",
+    "lowStockFilter": "Showing low stock items only (available < 10)"
   },
   "channels": {
     "title": "Channels",
@@ -401,7 +434,15 @@
     "tunnelCopied": "URI Copied",
     "tunnelSetupLink": "Open Cafe24 Developers",
     "tunnelStep2": "Once registered, click the button below to connect.",
-    "tunnelPermanent": "Permanent URL (always available)"
+    "tunnelPermanent": "Permanent URL (always available)",
+    "syncIssues": "Sync Issues",
+    "syncIssueCount": "{count} sync issues found",
+    "syncAllGood": "All channels synced successfully",
+    "syncAllGoodDesc": "No products with FAILED or STALE status",
+    "syncColProduct": "Product",
+    "syncColChannel": "Channel",
+    "syncColStatus": "Status",
+    "syncIssueLastUpdated": "As of {date}"
   },
   "settings": {
     "title": "Settings",

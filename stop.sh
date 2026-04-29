@@ -15,12 +15,24 @@ log()  { echo -e "${CYAN}▸${NC} $1"; }
 ok()   { echo -e "${GREEN}✓${NC} $1"; }
 warn() { echo -e "${YELLOW}⚠${NC} $1"; }
 
+# ── 프로세스 트리 종료 (pgrep -P 재귀, macOS/Linux 호환) ─────────────────────
+kill_tree() {
+  local pid="$1"
+  local children
+  children=$(pgrep -P "$pid" 2>/dev/null || true)
+  for child in $children; do
+    kill_tree "$child"
+  done
+  kill "$pid" 2>/dev/null || true
+}
+
 echo ""
 echo -e "${CYAN}━━━ OmniCommerce 개발 환경 종료 ━━━${NC}"
 echo ""
 
-# ── 1. 앱 프로세스 종료 ──
+# ── 1. 앱 프로세스 종료 ──────────────────────────────────────────────────────
 if [ -f "$PIDFILE" ]; then
+  # shellcheck source=/dev/null
   source "$PIDFILE"
 
   for entry in "API_PID:API 서버" "WEB_PID:Web 서버" "ARQ_PID:ARQ 워커"; do
@@ -28,7 +40,7 @@ if [ -f "$PIDFILE" ]; then
     label="${entry#*:}"
     pid="${!var:-}"
     if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-      kill "$pid" 2>/dev/null
+      kill_tree "$pid"
       wait "$pid" 2>/dev/null || true
       ok "$label 종료 (PID $pid)"
     else

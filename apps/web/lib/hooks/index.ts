@@ -21,8 +21,21 @@ export {
   type PriceHistoryItem,
   type PriceBatchItem,
   type RevertBatchResult,
+  type ResyncResult,
+  type SyncIssueItem,
+  type SyncIssueResponse,
+  useResyncProduct,
+  useSyncIssues,
 } from "./use-products";
-export { useOrders, useOrder, useUpdateOrderStatus } from "./use-orders";
+export {
+  useOrders,
+  useOrder,
+  useUpdateOrderStatus,
+  useUpdateOrderTracking,
+  useBulkUpdateOrderStatus,
+  type BulkOrderStatusItemResult,
+  type BulkOrderStatusResult,
+} from "./use-orders";
 export {
   useInventory,
   useUpdateInventory,
