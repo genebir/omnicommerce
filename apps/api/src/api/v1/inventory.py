@@ -75,24 +75,58 @@ async def list_inventory(
     )
 
 
-@router.get("/{sku}", response_model=ApiResponse[InventoryResponse])
-async def get_inventory(sku: str, session: SessionDep, warehouse_id: str = "default"):
-    service = InventoryService(session)
-    inv = await service.get_by_sku(sku, warehouse_id)
+async def _ensure_sku_owned(session, current_user_id: uuid.UUID, sku: str, warehouse_id: str) -> Inventory:
+    """SKU가 현재 사용자 소유인지 확인하고 Inventory 행을 반환. 아니면 404."""
+    result = await session.execute(
+        select(Inventory)
+        .join(Product, Inventory.product_id == Product.id)
+        .where(
+            Inventory.sku == sku,
+            Inventory.warehouse_id == warehouse_id,
+            *_user_inventory_where(current_user_id),
+        )
+    )
+    inv = result.scalar_one_or_none()
     if not inv:
         raise HTTPException(status_code=404, detail="재고를 찾을 수 없습니다")
+    return inv
+
+
+async def _ensure_product_owned(session, current_user_id: uuid.UUID, product_id: uuid.UUID) -> None:
+    """product_id가 현재 사용자 소유인지 확인. 아니면 404."""
+    result = await session.execute(
+        select(Product.id).where(
+            Product.id == product_id,
+            Product.user_id == current_user_id,
+            Product.deleted_at.is_(None),
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다")
+
+
+@router.get("/{sku}", response_model=ApiResponse[InventoryResponse])
+async def get_inventory(
+    sku: str,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+    warehouse_id: str = "default",
+):
+    inv = await _ensure_sku_owned(session, current_user.id, sku, warehouse_id)
     return ApiResponse(data=inv)
 
 
 @router.get("/product/{product_id}", response_model=ApiResponse[list[InventoryResponse]])
-async def list_product_inventory(product_id: uuid.UUID, session: SessionDep):
+async def list_product_inventory(product_id: uuid.UUID, session: SessionDep, current_user: CurrentUserDep):
+    await _ensure_product_owned(session, current_user.id, product_id)
     service = InventoryService(session)
     items = await service.list_by_product(product_id)
     return ApiResponse(data=items)
 
 
 @router.put("", response_model=ApiResponse[InventoryResponse])
-async def upsert_inventory(body: InventoryUpsert, session: SessionDep):
+async def upsert_inventory(body: InventoryUpsert, session: SessionDep, current_user: CurrentUserDep):
+    await _ensure_product_owned(session, current_user.id, body.product_id)
     service = InventoryService(session)
     inv = await service.create_or_update(
         product_id=body.product_id,
@@ -104,7 +138,8 @@ async def upsert_inventory(body: InventoryUpsert, session: SessionDep):
 
 
 @router.post("/allocate", response_model=ApiResponse[InventoryResponse])
-async def allocate_inventory(body: AllocateRequest, session: SessionDep):
+async def allocate_inventory(body: AllocateRequest, session: SessionDep, current_user: CurrentUserDep):
+    await _ensure_sku_owned(session, current_user.id, body.sku, body.warehouse_id)
     service = InventoryService(session)
     try:
         inv = await service.allocate(body.sku, body.quantity, body.warehouse_id)
@@ -114,7 +149,8 @@ async def allocate_inventory(body: AllocateRequest, session: SessionDep):
 
 
 @router.post("/deallocate", response_model=ApiResponse[InventoryResponse])
-async def deallocate_inventory(body: AllocateRequest, session: SessionDep):
+async def deallocate_inventory(body: AllocateRequest, session: SessionDep, current_user: CurrentUserDep):
+    await _ensure_sku_owned(session, current_user.id, body.sku, body.warehouse_id)
     service = InventoryService(session)
     try:
         inv = await service.deallocate(body.sku, body.quantity, body.warehouse_id)
