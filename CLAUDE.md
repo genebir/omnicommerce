@@ -1017,6 +1017,20 @@ make doctor   # 아래 전부 수행
 
 #### 16.3.1 첫 셋업 (한 번만)
 
+**권장 — `install.sh` 자동 부트스트랩** (curl/git만 있으면 됨, 나머지 전부 자동 설치):
+
+```bash
+git clone git@github.com:genebir/omnicommerce.git && cd omnicommerce
+./install.sh
+```
+
+지원 OS: macOS 12+ / Ubuntu 20.04+ / Debian 11+ / RHEL 8+ / Fedora / Arch / WSL2.
+스크립트가 Docker, uv + Python 3.14, nvm + Node 24, pnpm 10, psql 클라이언트를 검사·설치하고 `uv sync` + `pnpm install` + `.env` 생성 + `docker compose up -d` + `setup.py`(DB 유저/DB 생성 → 마이그레이션 → 시드)까지 일괄 수행. 멱등 — 다시 돌려도 안전. 로그는 `.install.log`.
+
+설치 후 `./start.sh`로 API + Web 동시 기동, `./stop.sh`로 정리.
+
+**수동 셋업** (이미 의존성을 갖춘 머신에서):
+
 ```bash
 git clone git@github.com:genebir/omnicommerce.git && cd omnicommerce
 cp .env.example .env                 # 부트스트랩 환경변수 (§9.2)
