@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from src.api.v1.schemas import ApiResponse
+from src.core.deps import CurrentUserDep
 from src.infra.queue.enqueue import enqueue_task
 
 router = APIRouter(prefix="/jobs", tags=["작업"])
@@ -20,8 +21,10 @@ class JobResponse(BaseModel):
 
 
 @router.post("", status_code=202)
-async def create_job(body: EnqueueRequest) -> ApiResponse[JobResponse]:
-    """비동기 작업을 큐에 추가하고 job_id를 반환."""
+async def create_job(body: EnqueueRequest, current_user: CurrentUserDep) -> ApiResponse[JobResponse]:
+    """비동기 작업을 큐에 추가하고 job_id를 반환. 인증된 사용자만 호출 가능."""
+    _ = current_user  # 인증 강제용 의존성 — 큐 워커는 params 기반으로 권한 처리
+
     allowed_tasks = {
         "sync_channel_products",
         "sync_channel_orders",
@@ -36,8 +39,10 @@ async def create_job(body: EnqueueRequest) -> ApiResponse[JobResponse]:
 
 
 @router.get("/{job_id}")
-async def get_job_status(job_id: str) -> ApiResponse[JobResponse]:
-    """작업 상태 조회."""
+async def get_job_status(job_id: str, current_user: CurrentUserDep) -> ApiResponse[JobResponse]:
+    """작업 상태 조회. 인증된 사용자만 호출 가능."""
+    _ = current_user
+
     from arq import create_pool
     from arq.jobs import Job
 
@@ -49,7 +54,7 @@ async def get_job_status(job_id: str) -> ApiResponse[JobResponse]:
     await pool.aclose()
 
     if info is None:
-        raise HTTPException(status_code=404, detail="작업을 찾을 수 없습��다")
+        raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다")
 
     status = info.status if hasattr(info, "status") else "unknown"
     return ApiResponse(data=JobResponse(job_id=job_id, status=str(status)))
