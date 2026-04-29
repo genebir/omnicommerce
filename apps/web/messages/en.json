@@ -204,6 +204,10 @@
     "placeholderIncPercent": "e.g. -10 (down 10%), 5 (up 5%)",
     "roundTo": "Round to",
     "noRound": "No rounding",
+    "unitWon": "KRW",
+    "unitPercent": "%",
+    "roundUnit": "{value} KRW",
+    "channelFailItem": "{channel}: {count}",
     "step3": "Step 3 — Which channels to sync",
     "noChannels": "No channels connected. Only internal data will be changed.",
     "noChannelHint": "If unchecked, only internal data is changed (no channel push).",
@@ -240,7 +244,9 @@
     "applied": "Updated stock for {count} SKU(s)",
     "partialFailed": "Updated {count}. Some channels failed: {summary}",
     "authExpired": "Channel authentication expired.",
-    "goToChannels": "Go to Channels"
+    "goToChannels": "Go to Channels",
+    "unitPiece": "items",
+    "channelFailItem": "{channel}: {count}"
   },
   "priceHistory": {
     "title": "Recent Price Changes",

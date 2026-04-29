@@ -105,7 +105,7 @@ export function BulkInventoryEditDialog({
       });
     } else if (failByChannel.size > 0) {
       const summary = Array.from(failByChannel.entries())
-        .map(([ch, n]) => `${ch} ${n}건`)
+        .map(([ch, n]) => t("channelFailItem", { channel: ch, count: n }))
         .join(", ");
       toast.warning(t("partialFailed", { summary, count: data.updated_count }), { duration: 8000 });
     } else {
@@ -150,7 +150,7 @@ export function BulkInventoryEditDialog({
                 }
                 className="flex-1"
               />
-              <span className="text-sm text-text-tertiary">개</span>
+              <span className="text-sm text-text-tertiary">{t("unitPiece")}</span>
             </div>
           </section>
 

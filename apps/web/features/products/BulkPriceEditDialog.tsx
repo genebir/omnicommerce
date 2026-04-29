@@ -166,7 +166,7 @@ export function BulkPriceEditDialog({
       });
     } else if (failByChannel.size > 0) {
       const summary = Array.from(failByChannel.entries())
-        .map(([ch, n]) => `${ch} ${n}건`)
+        .map(([ch, n]) => t("channelFailItem", { channel: ch, count: n }))
         .join(", ");
       toast.warning(t("partialFailed", { summary, count: data.updated_count }), {
         duration: 8000,
@@ -250,7 +250,7 @@ export function BulkPriceEditDialog({
                     className="flex-1"
                   />
                   <span className="text-sm text-text-tertiary">
-                    {mode === "inc_percent" ? "%" : "원"}
+                    {mode === "inc_percent" ? t("unitPercent") : t("unitWon")}
                   </span>
                 </div>
                 {mode !== "inc_percent" && (
@@ -267,7 +267,7 @@ export function BulkPriceEditDialog({
                             : "text-text-tertiary hover:text-text-primary"
                         }`}
                       >
-                        {r === 1 ? t("noRound") : `${r}원`}
+                        {r === 1 ? t("noRound") : t("roundUnit", { value: r })}
                       </button>
                     ))}
                   </div>

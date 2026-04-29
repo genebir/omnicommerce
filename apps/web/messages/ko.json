@@ -204,6 +204,10 @@
     "placeholderIncPercent": "예) -10 (10% 인하), 5 (5% 인상)",
     "roundTo": "반올림 단위",
     "noRound": "반올림 안 함",
+    "unitWon": "원",
+    "unitPercent": "%",
+    "roundUnit": "{value}원",
+    "channelFailItem": "{channel} {count}건",
     "step3": "3단계 — 어느 채널에 함께 반영할까요?",
     "noChannels": "연결된 판매 채널이 없습니다. 내부 데이터만 변경됩니다.",
     "noChannelHint": "체크하지 않으면 내부 데이터만 변경됩니다 (어느 채널에도 푸시되지 않습니다).",
@@ -240,7 +244,9 @@
     "applied": "{count}개 SKU의 재고가 변경되었습니다",
     "partialFailed": "{count}개 변경 완료. 일부 채널 동기화 실패: {summary}",
     "authExpired": "채널 인증이 만료되어 일부 채널에 적용되지 못했습니다.",
-    "goToChannels": "채널 페이지로"
+    "goToChannels": "채널 페이지로",
+    "unitPiece": "개",
+    "channelFailItem": "{channel} {count}건"
   },
   "priceHistory": {
     "title": "최근 가격 변경 이력",
