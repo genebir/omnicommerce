@@ -1,7 +1,7 @@
 """대시보드 통계 API 엔드포인트."""
 
 import uuid
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
@@ -102,6 +102,13 @@ async def get_dashboard_stats(session: SessionDep, current_user: CurrentUserDep)
     return ApiResponse(data=stats)
 
 
+def _months_ago_first_day(current: datetime, months: int) -> datetime:
+    """현재 시각에서 (months-1)개월 전의 그 달 1일 0시. 월 길이에 의존하지 않는 정확 계산."""
+    total = current.year * 12 + (current.month - 1) - (months - 1)
+    year, month0 = divmod(total, 12)
+    return current.replace(year=year, month=month0 + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
 @router.get("/sales", response_model=ApiResponse[SalesResponse])
 async def get_sales_stats(
     session: SessionDep,
@@ -110,8 +117,7 @@ async def get_sales_stats(
 ):
     """월별 매출·주문 수 통계."""
     current = now()
-    start_date = current.replace(day=1) - timedelta(days=(months - 1) * 30)
-    start_date = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    start_date = _months_ago_first_day(current, months)
 
     result = await session.execute(
         select(
