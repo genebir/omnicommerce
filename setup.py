@@ -17,7 +17,6 @@ import argparse
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -40,27 +39,42 @@ def _psql_cmd(dbname: str, extra_flags: list[str]) -> tuple[list[str], dict]:
     env = os.environ.copy()
 
     # 로컬 psql 탐색 (brew libpq 경로 포함)
-    local_psql = shutil.which("psql") or shutil.which(
-        "/opt/homebrew/opt/libpq/bin/psql"
-    ) or shutil.which("/usr/local/opt/libpq/bin/psql")
+    local_psql = (
+        shutil.which("psql")
+        or shutil.which("/opt/homebrew/opt/libpq/bin/psql")
+        or shutil.which("/usr/local/opt/libpq/bin/psql")
+    )
 
     if local_psql:
         env["PGPASSWORD"] = PG_SUPERPASS
         cmd = [
             local_psql,
-            "-h", PG_HOST, "-p", PG_PORT,
-            "-U", PG_SUPERUSER, "-d", dbname,
+            "-h",
+            PG_HOST,
+            "-p",
+            PG_PORT,
+            "-U",
+            PG_SUPERUSER,
+            "-d",
+            dbname,
         ] + extra_flags
         return cmd, env
 
     # 로컬 psql 없음 → Docker 컨테이너 내 psql 사용
     # PGPASSWORD는 docker exec 환경에서 -e 플래그로 주입
     cmd = [
-        "docker", "compose", "exec", "-T",
-        "-e", f"PGPASSWORD={PG_SUPERPASS}",
+        "docker",
+        "compose",
+        "exec",
+        "-T",
+        "-e",
+        f"PGPASSWORD={PG_SUPERPASS}",
         "postgres",
         "psql",
-        "-U", PG_SUPERUSER, "-d", dbname,
+        "-U",
+        PG_SUPERUSER,
+        "-d",
+        dbname,
     ] + extra_flags
     return cmd, env
 
@@ -81,7 +95,7 @@ def run_psql_query(sql: str, dbname: str = "postgres") -> str:
 
 
 def step_create_user():
-    print("\n[1/5] 데이터베이스 유저 생성")
+    print("\n[1/6] 데이터베이스 유저 생성")
     exists = run_psql_query(f"SELECT 1 FROM pg_roles WHERE rolname = '{APP_USER}';")
     if exists == "1":
         print(f"  ✓ 유저 '{APP_USER}' 이미 존재")
@@ -91,7 +105,7 @@ def step_create_user():
 
 
 def step_create_database():
-    print("\n[2/5] 데이터베이스 생성")
+    print("\n[2/6] 데이터베이스 생성")
     exists = run_psql_query(f"SELECT 1 FROM pg_database WHERE datname = '{APP_DB}';")
     if exists == "1":
         print(f"  ✓ DB '{APP_DB}' 이미 존재")
@@ -118,7 +132,7 @@ def step_create_database():
 
 
 def step_create_env():
-    print("\n[3/5] .env 파일 확인")
+    print("\n[3/6] .env 파일 확인")
     env_file = PROJECT_ROOT / ".env"
     env_example = PROJECT_ROOT / ".env.example"
     if env_file.exists():
@@ -133,7 +147,7 @@ def step_create_env():
 
 
 def step_run_migrations():
-    print("\n[4/5] Alembic 마이그레이션 실행")
+    print("\n[4/6] Alembic 마이그레이션 실행")
     # uv run alembic: venv 내 alembic을 사용 (python -m alembic은 venv 외부 python이 실행될 수 있음)
     uv_bin = shutil.which("uv") or "uv"
     result = subprocess.run(
@@ -155,26 +169,75 @@ def step_run_migrations():
 
 def _run_app_psql(sql: str) -> subprocess.CompletedProcess:
     """앱 전용 유저(omni_user)로 psql 실행 — 로컬/Docker 자동 감지."""
-    local_psql = shutil.which("psql") or shutil.which(
-        "/opt/homebrew/opt/libpq/bin/psql"
-    ) or shutil.which("/usr/local/opt/libpq/bin/psql")
+    local_psql = (
+        shutil.which("psql")
+        or shutil.which("/opt/homebrew/opt/libpq/bin/psql")
+        or shutil.which("/usr/local/opt/libpq/bin/psql")
+    )
 
     env = os.environ.copy()
     if local_psql:
         env["PGPASSWORD"] = APP_PASS
-        cmd = [local_psql, "-h", PG_HOST, "-p", PG_PORT, "-U", APP_USER, "-d", APP_DB, "-c", sql]
+        cmd = [
+            local_psql,
+            "-h",
+            PG_HOST,
+            "-p",
+            PG_PORT,
+            "-U",
+            APP_USER,
+            "-d",
+            APP_DB,
+            "-c",
+            sql,
+        ]
     else:
         cmd = [
-            "docker", "compose", "exec", "-T",
-            "-e", f"PGPASSWORD={APP_PASS}",
-            "postgres", "psql",
-            "-U", APP_USER, "-d", APP_DB, "-c", sql,
+            "docker",
+            "compose",
+            "exec",
+            "-T",
+            "-e",
+            f"PGPASSWORD={APP_PASS}",
+            "postgres",
+            "psql",
+            "-U",
+            APP_USER,
+            "-d",
+            APP_DB,
+            "-c",
+            sql,
         ]
     return subprocess.run(cmd, env=env, capture_output=True, text=True)
 
 
+def step_seed_admin():
+    """BOOTSTRAP_ADMIN_PASSWORD가 .env에 비어있지 않으면 첫 관리자 계정을 생성한다.
+
+    페이즈 8에서 만든 /admin/settings/* 게이트는 is_superuser=True 사용자만 통과하므로,
+    신규 셋업 시 한 번에 운영 가능한 관리자 계정을 만들어 둔다. 멱등.
+    """
+    print("\n[6/6] 부트스트랩 관리자 시드 (BOOTSTRAP_ADMIN_PASSWORD 설정된 경우)")
+    uv_bin = shutil.which("uv") or "uv"
+    result = subprocess.run(
+        [uv_bin, "run", "python", "scripts/seed_admin.py"],
+        cwd=str(API_DIR),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        # 스크립트가 자체적으로 결과를 출력하므로 그대로 전달
+        for line in result.stdout.strip().split("\n"):
+            if line.strip():
+                print(line)
+    else:
+        print(f"  [오류] 관리자 시드 실패:\n{result.stderr}")
+        return False
+    return True
+
+
 def step_seed_data():
-    print("\n[5/5] 시드 데이터 삽입")
+    print("\n[5/6] 시드 데이터 삽입")
     seed_sql = """
     INSERT INTO channel_types (id, code, name, is_active, created_at, updated_at)
     VALUES
@@ -241,13 +304,13 @@ def verify_setup():
     if channel_count.returncode == 0:
         count = channel_count.stdout.strip().split("\n")
         # 두 번째 줄이 값 (헤더 제외)
-        val = next((l.strip() for l in count if l.strip().isdigit()), "?")
+        val = next((line.strip() for line in count if line.strip().isdigit()), "?")
         print(f"  ✓ 채널 타입 {val}개 등록됨")
 
     settings_count = _run_app_psql("SELECT count(*) FROM app_settings;")
     if settings_count.returncode == 0:
         count = settings_count.stdout.strip().split("\n")
-        val = next((l.strip() for l in count if l.strip().isdigit()), "?")
+        val = next((line.strip() for line in count if line.strip().isdigit()), "?")
         print(f"  ✓ 앱 설정 {val}개 등록됨")
 
     print(
@@ -277,12 +340,14 @@ def main():
         step_run_migrations()
     elif args.seed:
         step_seed_data()
+        step_seed_admin()
     else:
         step_create_user()
         step_create_database()
         step_create_env()
         step_run_migrations()
         step_seed_data()
+        step_seed_admin()
 
     verify_setup()
 
