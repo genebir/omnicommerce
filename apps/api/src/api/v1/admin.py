@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from src.api.v1.schemas import ApiResponse, PaginatedResponse, PaginationMeta
-from src.core.deps import CurrentUserDep, SessionDep
+from src.core.deps import AdminUserDep, SessionDep
 from src.infra.cache.settings_cache import settings_cache
 from src.infra.db.models.app_settings import AppSetting, AppSettingHistory
 from src.utils.clock import now
@@ -48,7 +48,7 @@ class SettingUpdateRequest(BaseModel):
 @router.get("/settings", response_model=PaginatedResponse[SettingResponse])
 async def list_settings(
     session: SessionDep,
-    _: CurrentUserDep,
+    _: AdminUserDep,
     q: str | None = Query(None, description="키·설명 검색"),
     scope: str | None = Query(None, description="스코프 필터 (global, channel:...)"),
     limit: int = Query(50, ge=1, le=200),
@@ -88,7 +88,7 @@ async def list_settings(
 
 
 @router.get("/settings/{setting_id}", response_model=ApiResponse[SettingResponse])
-async def get_setting(setting_id: uuid.UUID, session: SessionDep, _: CurrentUserDep):
+async def get_setting(setting_id: uuid.UUID, session: SessionDep, _: AdminUserDep):
     """설정 단건 조회."""
     setting = await session.get(AppSetting, setting_id)
     if not setting:
@@ -103,7 +103,7 @@ async def update_setting(
     setting_id: uuid.UUID,
     body: SettingUpdateRequest,
     session: SessionDep,
-    current_user: CurrentUserDep,
+    current_user: AdminUserDep,
 ):
     """설정값 수정 — 변경 이력 자동 기록."""
     setting = await session.get(AppSetting, setting_id)
@@ -141,7 +141,7 @@ async def rollback_setting(
     setting_id: uuid.UUID,
     history_id: uuid.UUID,
     session: SessionDep,
-    current_user: CurrentUserDep,
+    current_user: AdminUserDep,
 ):
     """특정 이력으로 롤백 — 이력 항목의 old_value를 현재값으로 복원."""
     setting = await session.get(AppSetting, setting_id)
@@ -184,7 +184,7 @@ async def rollback_setting(
 async def get_setting_history(
     setting_id: uuid.UUID,
     session: SessionDep,
-    _: CurrentUserDep,
+    _: AdminUserDep,
     limit: int = Query(20, ge=1, le=100),
 ):
     """설정 변경 이력 조회 (최신순)."""

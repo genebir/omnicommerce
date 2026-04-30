@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from src.api.v1.schemas import ApiResponse
 from src.config.schema import AppConfig
-from src.core.deps import SessionDep
+from src.core.deps import CurrentUserDep, SessionDep
 from src.infra.cache.settings_cache import settings_cache
 
 router = APIRouter(prefix="/config")
@@ -22,6 +22,9 @@ async def get_ui_config(session: SessionDep) -> ApiResponse[dict]:
 
 
 @router.get("/full")
-async def get_full_config(session: SessionDep) -> ApiResponse[AppConfig]:
+async def get_full_config(
+    session: SessionDep,
+    _: CurrentUserDep,
+) -> ApiResponse[AppConfig]:
     config = await settings_cache.get(session)
     return ApiResponse(data=config)
