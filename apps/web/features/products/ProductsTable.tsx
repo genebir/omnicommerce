@@ -21,6 +21,7 @@ interface ProductRow {
   name: string;
   sku: string;
   price: number;
+  cost_price: number | null;
   status: string;
   channel_listings: ChannelListingInfo[];
 }
@@ -49,6 +50,7 @@ export function ProductsTable() {
         name: p.name,
         sku: p.sku,
         price: p.price,
+        cost_price: p.cost_price,
         status: p.status,
         channel_listings: p.channel_listings ?? [],
       })),

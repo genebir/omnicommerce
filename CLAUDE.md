@@ -977,8 +977,9 @@ make doctor   # 아래 전부 수행
 - [x] **채널 상품 import 로직 개선**: 이미 등록된 상품을 재가져올 때 SKU 매칭 → 기존 상품에 `ChannelListing` 추가(external_url, last_synced_at 갱신), savepoint 내부에서 중복 체크로 트랜잭션 안전성 강화
 - [x] **i18n 키 추가** (`ko.json`/`en.json`): `deleteChannelFailed`, `deleteAuthExpired`, `goToChannels` 3키 추가
 - [x] **관리자 권한 게이트 (페이즈 8)**: `core/deps.py`에 `require_admin` + `AdminUserDep` 의존성 도입(403 on non-superuser). `/admin/settings/*` 5개 엔드포인트를 일반 셀러 차단, `/config/full`을 미인증 차단. `tests/integration/test_admin_auth.py` 5건 회귀
+- [x] **일괄 단가 미리보기 버그 수정 (페이즈 9)**: `BulkPriceEditDialog`가 `field === "cost_price"` 모드에서 미리보기를 항상 `—`로 표시하던 회귀 — `SelectedProduct.cost_price` 누락 + `previews` 계산이 `p.price`만 base로 사용. `features/products/bulk-price-preview.ts`로 헬퍼 분리(`applyChange`/`computeBulkPricePreview`), null cost_price 안전 처리. `bulk-price-preview.test.ts` 9건
 
-### 16.1.1 자율 정리 사이클 (2026-04-29 ~ 2026-04-30 / 페이즈 1–8)
+### 16.1.1 자율 정리 사이클 (2026-04-29 ~ 2026-04-30 / 페이즈 1–9)
 
 직전 세션이 머신 A·B 양쪽에서 동시에 진행돼 `main` 브랜치가 11(로컬)↔6(원격) 커밋으로 diverged된 상태에서 시작. 다음을 머지·검증·푸시 완료:
 
@@ -990,8 +991,9 @@ make doctor   # 아래 전부 수행
 - [x] **페이즈 6 — `inventory` 엔드포인트 인증/소유권 보안 패치**: `GET /{sku}`·`GET /product/{id}`·`PUT`·`POST /allocate`·`POST /deallocate` 5개 엔드포인트가 **모두 인증 없음**이었음 — 누구나 다른 사용자 재고 조회/수정/할당 가능. `_ensure_sku_owned`, `_ensure_product_owned` 헬퍼로 user 검증 일원화. `tests/integration/test_inventory_security.py` 2건.
 - [x] **페이즈 7 — `jobs` 큐 API 인증 보안 패치**: `POST /jobs`(임의 task 큐잉)·`GET /jobs/{id}`(작업 정보 조회)에 `CurrentUserDep` 추가. `tests/integration/test_jobs_auth.py` 2건. 부수: 기존 에러 메시지 mojibake 수정. NB — 큐 task params 안의 user 식별자 검증은 워커 인프라가 다뤄야 하는 별개 작업, 이번 패치는 외부 노출 인증만 막는 1차 방어선.
 - [x] **페이즈 8 — 관리자 권한 게이트 (특권 상승 차단)**: `/admin/settings/*` 5개 엔드포인트가 `CurrentUserDep`만 검사해 **일반 셀러도 `app_settings`(레이트리밋·기능 플래그·이메일 템플릿)를 조회·수정·롤백 가능**했음. 추가로 `GET /config/full`은 인증 자체가 없어 운영 설정이 미인증으로 노출. `core/deps.py`에 `require_admin` + `AdminUserDep`(403 on `is_superuser=False`) 도입, 관리자 엔드포인트 5개를 `AdminUserDep`로, `/config/full`은 `CurrentUserDep`로 보호. `/config/ui`는 로그인 페이지에서 필요하므로 공개 유지. `tests/integration/test_admin_auth.py` 5건 (미인증 401 / 일반 사용자 403 / 관리자 200 / `/config/full` 401·200 / `/config/ui` 공개). NB — 관리자 시드(`BOOTSTRAP_ADMIN_*`)와 프론트 admin 페이지의 403 UX 처리는 별도 페이즈로 분리.
+- [x] **페이즈 9 — 일괄 단가(`cost_price`) 수정 미리보기 버그**: `BulkPriceEditDialog`가 `field === "cost_price"` 모드에서 미리보기 셀 두 칸을 항상 `—`로 표시 — `SelectedProduct` 인터페이스에 `cost_price`가 없었고, `previews` 계산도 `p.price`만 base로 사용. 사용자(컴퓨터 비숙련 1인 셀러)가 매일 수행하는 4가지 핵심 작업 중 3번째인 "단가 수정"의 안전장치가 사실상 작동하지 않던 회귀. `features/products/bulk-price-preview.ts`로 `applyChange` + `computeBulkPricePreview`를 순수 함수로 분리(테스트 가능 + null-safe), `BulkPriceEditDialog`/`ProductsTable`의 `cost_price` 필드 누락 보완, 미리보기 셀을 `oldValue`/`newValue` 일반화. 단위 테스트 9건 (`bulk-price-preview.test.ts`) — `applyChange`(absolute/inc_amount/inc_percent/clamp 4건) + `computeBulkPricePreview`(price 모드 2건 + cost_price 모드 3건, null cost_price 처리 + custom 입력 케이스).
 
-**누적 효과**: 회귀 테스트 19건 신규 (백엔드 101건 통과), 보안 패치 4건, 잠재 버그 1건, UX/i18n 정리 2건. `make doctor` 신규 회귀 없음.
+**누적 효과**: 회귀 테스트 28건 신규 (백엔드 101건 + 프론트 unit 44건 = 총 145건 통과), 보안 패치 4건, 잠재 버그 2건, UX/i18n 정리 2건. `make doctor` 신규 회귀 없음.
 
 ### 16.2 미구현 (TODO)
 
@@ -1001,11 +1003,10 @@ make doctor   # 아래 전부 수행
 
 | 우선 | 영역 | 작업 | 산출 위치 |
 |---|---|---|---|
-| 1 | 사용자 1순위 UX | `BulkPriceEditDialog` `cost_price` 모드에서 미리보기 칸이 `—`로 표시되는 문제 — 백엔드 `Product`에 `cost_price`가 있는지 먼저 확인하고, 있으면 `ProductsTable` → `selectedProducts`에 `cost_price` 포함시키도록 props 인터페이스 확장. | `apps/web/features/products/{ProductsTable,BulkPriceEditDialog}.tsx`, `lib/hooks/use-products.ts` |
-| 2 | i18n 폴리싱 | `CommandPalette` (`label`/`section` 8개 한글 하드코딩), `SyncStatus` (4상태 라벨), `ProductsTable.tsx:146` `aria-label="삭제"`, `Topbar.tsx:38` `aria-label="메뉴"`, `SettingHistoryDrawer.tsx:59` `"닫기"`. 영어 모드 깨짐 잡기. | `apps/web/components/patterns/{CommandPalette,SyncStatus}.tsx` 외 |
-| 3 | 보안 audit (후속) | (a) 부트스트랩 관리자 시드 — `BOOTSTRAP_ADMIN_EMAIL`/`PASSWORD`가 설정되어 있으면 `setup.py`(또는 첫 부팅 hook)에서 `is_superuser=True` 사용자 생성. 현재는 admin 권한자가 없으면 `/admin/settings/*`에 아무도 접근 못 함. (b) 프론트엔드 `(app)/admin/settings` 페이지에 `is_superuser` 가드 추가 — 일반 사용자에게 메뉴 숨김 + 직접 접근 시 403 메시지. | `setup.py`, `apps/api/src/api/v1/auth.py`, `apps/web/app/(app)/admin/settings/`, `apps/web/lib/stores/auth-store.ts` |
-| 4 | 개발자 경험 | (a) `Makefile:doctor`가 `python --version`을 호출하지만 일부 머신엔 `python` 심볼릭 링크가 없음(예: 우분투 표준) — `python3`로 변경하거나 `command -v` fallback. (b) `pnpm lint`가 `storybook-static`·`.next`까지 검사해 12000+ warning. `eslint.config.*`에 `ignores` 추가. | `Makefile`, `apps/web/eslint.config.*` |
-| 5 | (장기) | 다중 창고(WMS), B2B(세금계산서), `packages/shared-types/` (OpenAPI → TS 자동 생성) — v2 범위. | — |
+| 1 | i18n 폴리싱 | `CommandPalette` (`label`/`section` 8개 한글 하드코딩), `SyncStatus` (4상태 라벨), `ProductsTable.tsx:146` `aria-label="삭제"`, `Topbar.tsx:38` `aria-label="메뉴"`, `SettingHistoryDrawer.tsx:59` `"닫기"`. 영어 모드 깨짐 잡기. | `apps/web/components/patterns/{CommandPalette,SyncStatus}.tsx` 외 |
+| 2 | 보안 audit (후속) | (a) 부트스트랩 관리자 시드 — `BOOTSTRAP_ADMIN_EMAIL`/`PASSWORD`가 설정되어 있으면 `setup.py`(또는 첫 부팅 hook)에서 `is_superuser=True` 사용자 생성. 현재는 admin 권한자가 없으면 `/admin/settings/*`에 아무도 접근 못 함. (b) 프론트엔드 `(app)/admin/settings` 페이지에 `is_superuser` 가드 추가 — 일반 사용자에게 메뉴 숨김 + 직접 접근 시 403 메시지. | `setup.py`, `apps/api/src/api/v1/auth.py`, `apps/web/app/(app)/admin/settings/`, `apps/web/lib/stores/auth-store.ts` |
+| 3 | 개발자 경험 | (a) `Makefile:doctor`가 `python --version`을 호출하지만 일부 머신엔 `python` 심볼릭 링크가 없음(예: 우분투 표준) — `python3`로 변경하거나 `command -v` fallback. (b) `pnpm lint`가 `storybook-static`·`.next`까지 검사해 12000+ warning. `eslint.config.*`에 `ignores` 추가. | `Makefile`, `apps/web/eslint.config.*` |
+| 4 | (장기) | 다중 창고(WMS), B2B(세금계산서), `packages/shared-types/` (OpenAPI → TS 자동 생성) — v2 범위. | — |
 
 #### 16.2.2 v2 범위 (보류)
 

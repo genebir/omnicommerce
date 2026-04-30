@@ -24,6 +24,7 @@ import {
   type BulkPriceField,
   type ChannelListingInfo,
 } from "@/lib/hooks";
+import { computeBulkPricePreview } from "./bulk-price-preview";
 
 type Mode = "absolute" | "inc_amount" | "inc_percent" | "custom";
 type Field = "price" | "cost_price";
@@ -33,6 +34,7 @@ interface SelectedProduct {
   name: string;
   sku: string;
   price: number;
+  cost_price: number | null;
   channel_listings: ChannelListingInfo[];
 }
 
@@ -41,16 +43,6 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   selectedProducts: SelectedProduct[];
   onApplied?: () => void;
-}
-
-function applyChange(current: number, mode: Mode, value: number, roundTo = 10): number {
-  let next = current;
-  if (mode === "absolute") next = value;
-  else if (mode === "inc_amount") next = current + value;
-  else next = current * (1 + value / 100);
-  next = Math.max(0, next);
-  if (roundTo > 1) next = Math.round(next / roundTo) * roundTo;
-  return next;
 }
 
 export function BulkPriceEditDialog({
@@ -98,21 +90,20 @@ export function BulkPriceEditDialog({
   }, [customPrices]);
 
   const previews = useMemo(() => {
-    return selectedProducts.map((p) => {
-      const newPrice =
-        mode === "custom"
-          ? customMap[p.id] ?? p.price
-          : applyChange(p.price, mode, value, roundTo);
-      const channelTypesInProduct = p.channel_listings.map((cl) => cl.channel_type);
-      return {
-        product: p,
-        oldPrice: p.price,
-        newPrice,
-        diff: newPrice - p.price,
-        affectedChannels: channelTypesInProduct.filter((ct) => selectedChannels.has(ct)),
-      };
+    const rows = computeBulkPricePreview(selectedProducts, {
+      field,
+      mode,
+      value,
+      roundTo,
+      customMap,
     });
-  }, [selectedProducts, mode, value, roundTo, selectedChannels, customMap]);
+    return rows.map((r) => ({
+      ...r,
+      affectedChannels: r.product.channel_listings
+        .map((cl) => cl.channel_type)
+        .filter((ct) => selectedChannels.has(ct)),
+    }));
+  }, [selectedProducts, field, mode, value, roundTo, selectedChannels, customMap]);
 
   const channels = connectedChannels ?? [];
 
@@ -354,7 +345,7 @@ export function BulkPriceEditDialog({
                           </div>
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-center font-mono text-text-tertiary">
-                          {field === "price" ? formatCurrency(p.oldPrice) : "—"}
+                          {p.oldValue !== null ? formatCurrency(p.oldValue) : "—"}
                         </td>
                         <td
                           className={`whitespace-nowrap px-3 py-2 text-center font-mono ${
@@ -376,13 +367,13 @@ export function BulkPriceEditDialog({
                                   [p.product.id]: e.target.value,
                                 })
                               }
-                              placeholder={String(p.oldPrice)}
+                              placeholder={p.oldValue !== null ? String(p.oldValue) : ""}
                               className="mx-auto block w-full text-center font-mono"
                             />
                           ) : (
                             <div>
-                              <div>{field === "price" ? formatCurrency(p.newPrice) : "—"}</div>
-                              {field === "price" && p.diff !== 0 && (
+                              <div>{p.newValue !== null ? formatCurrency(p.newValue) : "—"}</div>
+                              {p.newValue !== null && p.diff !== 0 && (
                                 <div className="text-[11px] opacity-80">
                                   ({p.diff > 0 ? "+" : ""}
                                   {formatCurrency(p.diff)})
