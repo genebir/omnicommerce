@@ -983,7 +983,7 @@ make doctor   # 아래 전부 수행
 - [x] **상품 등록 시 재고 row 자동 생성 (페이즈 12)**: `ProductService.create`가 default 창고 재고 row(0 quantity)를 동시에 시드. 페르소나가 상품 등록 후 `/inventory`가 빈 화면이라 진행 못 하던 워크플로 막힘 해소. 멱등(silent skip), 회귀 2건
 - [x] **신규 상품 default status `ACTIVE` (페이즈 13)**: `Product.status` 모델 default를 `INACTIVE`→`ACTIVE`. 페르소나가 등록 직후 "비활성" 배지를 보고 멈칫하던 진입 막힘 해소. 외부 매핑(페이즈 5)과 일관. 회귀 1건
 
-### 16.1.1 자율 정리 사이클 (2026-04-29 ~ 2026-04-30 / 페이즈 1–13)
+### 16.1.1 자율 정리 사이클 (2026-04-29 ~ 2026-04-30 / 페이즈 1–14)
 
 직전 세션이 머신 A·B 양쪽에서 동시에 진행돼 `main` 브랜치가 11(로컬)↔6(원격) 커밋으로 diverged된 상태에서 시작. 다음을 머지·검증·푸시 완료:
 
@@ -1000,8 +1000,9 @@ make doctor   # 아래 전부 수행
 - [x] **페이즈 11 — Recent Activity i18n + 상대 시간 로케일**: 시각 UX 검증(Playwright 워크스루) 결과 영어 모드 대시보드의 `Recent Activity` 항목 텍스트(`상품 테스트 상품 4 업데이트`)와 모든 상대 시간(`21분 전`)이 한글로 출력되던 회귀를 발견. 두 가지 원인: (a) 백엔드 `/dashboard/activity` 응답의 `description`이 f-string 한국어 하드코딩, (b) `formatRelative` 유틸이 `"방금 전"`/`"N분 전"`을 직접 생성. 수정: ① `ActivityItem` 스키마에 `title_key`(예: `"orderUpdated"`) + `params`(`{id, status}` 등) 추가, `description`은 ko fallback으로 유지(하위 호환). ② 프론트 `RecentActivity.tsx`가 `title_key` 있으면 `t(...)` 호출, 없으면 `description`로 폴백. ③ `formatRelative(date, locale)`로 인자 추가 — `Intl.RelativeTimeFormat` 사용, 1분 미만만 직접 한국어/영어 분기(`"방금 전"`/`"just now"`), 일·시간·분은 `numeric: "always"`로 항상 숫자(`"2일 전"`/`"2 days ago"` — `auto`의 `"그저께"`/`"the day before yesterday"` 회피). ④ `RecentActivity`/`NotificationPanel` 두 호출처에 `useLocale()` 주입. 회귀 테스트 5건 (en 모드 분/시간/일/30일+/just now). 라이브 검증: 영어 모드 대시보드에서 `"Product 테스트 상품 4 updated"` + `"31 minutes ago"`로 정상 변환 확인.
 - [x] **페이즈 12 — 상품 등록 ↔ 재고 자동 생성 워크플로**: 시각 UX 검증에서 발견된 워크플로 막힘 — 페르소나(컴퓨터 비숙련 1인 셀러)가 상품 4개를 등록해도 `/inventory` 페이지가 빈 화면이라 "재고를 어떻게 추가하지?" 단계에서 진행 불가. 원인은 `POST /products`가 `Inventory` row를 자동 생성하지 않아 셀러가 별도로 SKU를 다시 입력해 재고 row를 만들어야 했음. 수정: `ProductService.create`가 product 생성 후 동일 트랜잭션에서 `Inventory(product_id, sku, warehouse_id="default", total/allocated/available=0)`를 자동 시드. 멱등성 — 기존 row가 있으면 silent skip(다른 사용자가 같은 SKU+창고를 점유한 경계 케이스 대응, `uq_inventory_sku_warehouse` 제약 회피). `services.product_service.DEFAULT_WAREHOUSE_ID = "default"` 상수로 명시. 회귀 테스트 `tests/integration/test_product_inventory_seed.py` 2건 — (a) 상품 등록 직후 `/inventory` 목록·SKU 단건 조회에서 0 재고 row 보장, (b) 기존 50 재고가 있는 상태에서 같은 SKU 재등록 시도해도 silent skip되어 50 유지.
 - [x] **페이즈 13 — 신규 상품 default status `INACTIVE` → `ACTIVE`**: 시각 UX 검증에서 발견 — 페르소나가 새 상품 등록 직후 `ProductsTable`에서 "비활성" 배지를 보고 "왜 비활성?"하고 멈칫하던 진입 막힘. 원인은 `Product.status` 모델 default가 `"INACTIVE"`라 등록 즉시 비활성으로 시작. 페이즈 5 채널 매핑 정규화(naver/coupang → `"ACTIVE"`/`"INACTIVE"` 대문자 통일)와도 일관. 수정: `Product.status` default를 `"ACTIVE"`로 변경. 회귀 테스트 `tests/integration/test_product_default_status.py` 1건 — 신규 등록 응답·목록 조회 모두 `"ACTIVE"` 보장. NB — 도메인 엔티티(`domain/product/entities.py`)의 `status = "draft"`(소문자) + `activate()`/`deactivate()`(소문자 출력)는 모델/매핑/API 응답과 불일치 상태로 남음. 단위 테스트에서만 사용되고 라우터 경로에서는 SQLAlchemy 모델을 직접 사용하므로 영향 없으나, 도메인-인프라 일관성을 위해 후속 페이즈에 정리 필요.
+- [x] **페이즈 14 — 사이드바 footer 시각 충돌(Next dev 인디케이터)**: 직전 페이즈에서 "Z 아바타가 footer '접기' 위에 겹침"으로 보고됐던 시각 결함을 추적 — 정체는 Next.js dev 모드의 빌드 인디케이터(좌하단 floating 'N' 로고). 운영 빌드는 미노출이지만 `pnpm dev` 실행 중에는 모든 페이지 좌하단에 떠 있어 사이드바 footer "접기" 버튼과 시각적으로 겹침. 페르소나가 매일 보는 화면이므로 즉시 거슬림. 수정: `apps/web/next.config.ts`에 `devIndicators: false` 1줄 추가(이유 주석 동반). 라이브 검증: dev 서버 재시작 후 `/products` 캡처 — 인디케이터 사라지고 footer "접기" 버튼 깔끔하게 노출. 회귀 테스트 없음(설정 1줄, 시각 회귀는 Playwright 시나리오 단위로 §16.2.1 후속에 묶음).
 
-**누적 효과**: 회귀 테스트 38건 신규 (백엔드 104건 + 프론트 unit 51건 = 총 155건 통과), 보안 패치 4건, 잠재 버그 2건, UX/i18n 정리 4건, 워크플로 막힘 해소 1건, 진입 막힘 해소 1건, 신규 페이지 1건. `make doctor` 신규 회귀 없음.
+**누적 효과**: 회귀 테스트 38건 신규 (백엔드 104건 + 프론트 unit 51건 = 총 155건 통과), 보안 패치 4건, 잠재 버그 2건, UX/i18n 정리 5건, 워크플로 막힘 해소 1건, 진입 막힘 해소 1건, 신규 페이지 1건. `make doctor` 신규 회귀 없음.
 
 ### 16.2 미구현 (TODO)
 
@@ -1011,12 +1012,11 @@ make doctor   # 아래 전부 수행
 
 | 우선 | 영역 | 작업 | 산출 위치 |
 |---|---|---|---|
-| 1 | UX(시각 결함) | **사이드바 footer "접기" 버튼이 사용자 아바타에 가려짐** — 데스크톱 모든 페이지에서 좌하단의 Z 아바타가 사이드바 footer "접기" 위에 겹침. z-index 또는 레이아웃 분리 필요. | `apps/web/components/layout/Sidebar.tsx`, `apps/web/components/layout/Shell.tsx` |
-| 2 | i18n 후속 | (a) **채널 카드 제목(브랜드명) 다국어** — "카페24/네이버 스마트스토어/쿠팡"이 영어 모드에서도 한글 그대로. `channel_types.name`에 한글만 저장 → 프론트에서 i18n 키로 매핑(`channels.cafe24.name` 등). (b) `Topbar` 알림 패널 데모 모킹 — 곧 실제 API 교체 예정이라 미뤘지만 그전까지 영어 모드 깨짐. (c) `ConnectWizard` cafe24 도움말(긴 한 문단). (d) "네이버 스마트스토어" 카드 줄바꿈 어색(긴 채널명+뱃지 동시). | `apps/web/features/channels/ChannelCard.tsx`, `apps/web/components/layout/Topbar.tsx`, `apps/web/features/channels/ConnectWizard.tsx` |
-| 3 | 보안 audit (후속) | (a) 부트스트랩 관리자 시드 — `BOOTSTRAP_ADMIN_EMAIL`/`PASSWORD`가 설정되어 있으면 `setup.py`(또는 첫 부팅 hook)에서 `is_superuser=True` 사용자 생성. 현재는 admin 권한자가 없으면 `/admin/settings/*`에 아무도 접근 못 함. (b) 프론트엔드 `(app)/admin/settings` 페이지에 `is_superuser` 가드 추가 — 일반 사용자에게 메뉴 숨김 + 직접 접근 시 403 메시지. | `setup.py`, `apps/api/src/api/v1/auth.py`, `apps/web/app/(app)/admin/settings/`, `apps/web/lib/stores/auth-store.ts` |
-| 4 | 도메인 일관성 | **`domain/product/entities.py`의 status가 소문자**(`"draft"`/`activate()` → `"active"`)인데 DB 모델·채널 매핑·API 응답은 대문자(`"ACTIVE"`/`"INACTIVE"`). 도메인 엔티티 unit 테스트에서만 사용되어 운영 영향은 없으나 일관성 깨짐 — 도메인을 대문자로 통일. | `apps/api/src/domain/product/entities.py`, `apps/api/tests/unit/test_product_entity.py` |
-| 5 | 개발자 경험 | (a) `Makefile:doctor`가 `python --version`을 호출하지만 일부 머신엔 `python` 심볼릭 링크가 없음(우분투 표준) — `python3` 변경 또는 `command -v` fallback. (b) `pnpm lint`가 `storybook-static`·`.next`까지 검사해 12000+ warning. `eslint.config.*`에 `ignores` 추가. | `Makefile`, `apps/web/eslint.config.*` |
-| 6 | (장기) | 다중 창고(WMS), B2B(세금계산서), `packages/shared-types/` (OpenAPI → TS 자동 생성) — v2 범위. | — |
+| 1 | i18n 후속 | (a) **채널 카드 제목(브랜드명) 다국어** — "카페24/네이버 스마트스토어/쿠팡"이 영어 모드에서도 한글 그대로. `channel_types.name`에 한글만 저장 → 프론트에서 i18n 키로 매핑(`channels.cafe24.name` 등). (b) `Topbar` 알림 패널 데모 모킹 — 곧 실제 API 교체 예정이라 미뤘지만 그전까지 영어 모드 깨짐. (c) `ConnectWizard` cafe24 도움말(긴 한 문단). (d) "네이버 스마트스토어" 카드 줄바꿈 어색(긴 채널명+뱃지 동시). | `apps/web/features/channels/ChannelCard.tsx`, `apps/web/components/layout/Topbar.tsx`, `apps/web/features/channels/ConnectWizard.tsx` |
+| 2 | 보안 audit (후속) | (a) 부트스트랩 관리자 시드 — `BOOTSTRAP_ADMIN_EMAIL`/`PASSWORD`가 설정되어 있으면 `setup.py`(또는 첫 부팅 hook)에서 `is_superuser=True` 사용자 생성. 현재는 admin 권한자가 없으면 `/admin/settings/*`에 아무도 접근 못 함. (b) 프론트엔드 `(app)/admin/settings` 페이지에 `is_superuser` 가드 추가 — 일반 사용자에게 메뉴 숨김 + 직접 접근 시 403 메시지. | `setup.py`, `apps/api/src/api/v1/auth.py`, `apps/web/app/(app)/admin/settings/`, `apps/web/lib/stores/auth-store.ts` |
+| 3 | 도메인 일관성 | **`domain/product/entities.py`의 status가 소문자**(`"draft"`/`activate()` → `"active"`)인데 DB 모델·채널 매핑·API 응답은 대문자(`"ACTIVE"`/`"INACTIVE"`). 도메인 엔티티 unit 테스트에서만 사용되어 운영 영향은 없으나 일관성 깨짐 — 도메인을 대문자로 통일. | `apps/api/src/domain/product/entities.py`, `apps/api/tests/unit/test_product_entity.py` |
+| 4 | 개발자 경험 | (a) `Makefile:doctor`가 `python --version`을 호출하지만 일부 머신엔 `python` 심볼릭 링크가 없음(우분투 표준) — `python3` 변경 또는 `command -v` fallback. (b) `pnpm lint`가 `storybook-static`·`.next`까지 검사해 12000+ warning. `eslint.config.*`에 `ignores` 추가. | `Makefile`, `apps/web/eslint.config.*` |
+| 5 | (장기) | 다중 창고(WMS), B2B(세금계산서), `packages/shared-types/` (OpenAPI → TS 자동 생성) — v2 범위. | — |
 
 #### 16.2.2 v2 범위 (보류)
 
