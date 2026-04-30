@@ -60,7 +60,11 @@
     "accountSettings": "Account Settings",
     "appearance": "Appearance",
     "help": "Help",
-    "logout": "Log out"
+    "logout": "Log out",
+    "demoNotif1Title": "New order received",
+    "demoNotif1Body": "Order #ORD-2026-0042 from Cafe24",
+    "demoNotif2Title": "Sync complete",
+    "demoNotif2Body": "12 Naver products synced"
   },
   "auth": {
     "login": "Log in",
@@ -450,6 +454,12 @@
     "tunnelSetupLink": "Open Cafe24 Developers",
     "tunnelStep2": "Once registered, click the button below to connect.",
     "tunnelPermanent": "Permanent URL (always available)",
+    "tunnelMissingTitle": "Redirect URI not configured",
+    "tunnelMissingBodyPrefix": " must be set to a Cloudflare Worker URL before OAuth can be used.",
+    "tunnelSetupGuide": "View setup guide",
+    "brandNameCafe24": "Cafe24",
+    "brandNameNaver": "Naver Smart Store",
+    "brandNameCoupang": "Coupang",
     "syncIssues": "Sync Issues",
     "syncIssueCount": "{count} sync issues found",
     "syncAllGood": "All channels synced successfully",

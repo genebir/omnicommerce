@@ -80,4 +80,29 @@ describe("messages catalog", () => {
       expect(enKeys).toContain(key);
     }
   });
+
+  it("페이즈 15 i18n 후속 키들이 두 카탈로그에 모두 존재한다", () => {
+    const required = [
+      // 채널 브랜드명 — 백엔드 channel_types.name 한글 폴백 대신 카탈로그 우선
+      "channels.brandNameCafe24",
+      "channels.brandNameNaver",
+      "channels.brandNameCoupang",
+      // Topbar 알림 데모 데이터
+      "topbar.demoNotif1Title",
+      "topbar.demoNotif1Body",
+      "topbar.demoNotif2Title",
+      "topbar.demoNotif2Body",
+      // ConnectWizard RedirectUriPanel
+      "channels.tunnelMissingTitle",
+      "channels.tunnelMissingBodyPrefix",
+      "channels.tunnelSetupGuide",
+    ];
+    const koKeys = flatten(ko as Tree);
+    const enKeys = flatten(en as Tree);
+
+    for (const key of required) {
+      expect(koKeys).toContain(key);
+      expect(enKeys).toContain(key);
+    }
+  });
 });

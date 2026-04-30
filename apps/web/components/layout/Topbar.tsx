@@ -71,20 +71,20 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
         {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
       </button>
 
-      {/* 알림 */}
+      {/* 알림 — 실제 API 연동 전까지 임시 데모 데이터 (i18n 적용) */}
       <NotificationPanel
         notifications={[
           {
             id: "1",
-            title: "새 주문 접수",
-            body: "카페24에서 주문 #ORD-2026-0042",
+            title: t("demoNotif1Title"),
+            body: t("demoNotif1Body"),
             read: false,
             createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
           },
           {
             id: "2",
-            title: "동기화 완료",
-            body: "네이버 상품 12개 동기화",
+            title: t("demoNotif2Title"),
+            body: t("demoNotif2Body"),
             read: true,
             createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
           },

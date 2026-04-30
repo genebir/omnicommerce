@@ -436,13 +436,14 @@ function RedirectUriPanel({
     <div className="rounded-xl border border-state-warning/30 bg-state-warning/5 p-3 text-xs">
       <div className="mb-1.5 flex items-center gap-1.5 font-medium text-state-warning">
         <AlertCircle className="size-3.5" />
-        Redirect URI 미설정
+        {t("tunnelMissingTitle")}
       </div>
       <p className="text-text-secondary">
-        <code className="rounded bg-bg-surface-2 px-1 py-0.5 text-[11px]">CAFE24_REDIRECT_URI</code>에 Cloudflare Worker URL을 설정해야 OAuth를 사용할 수 있습니다.
+        <code className="rounded bg-bg-surface-2 px-1 py-0.5 text-[11px]">CAFE24_REDIRECT_URI</code>
+        {t("tunnelMissingBodyPrefix")}
       </p>
       <a href="https://developers.cafe24.com/" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-0.5 text-accent-iris hover:underline">
-        설정 방법 보기 <ExternalLink className="size-2.5" />
+        {t("tunnelSetupGuide")} <ExternalLink className="size-2.5" />
       </a>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useMessages, useTranslations } from "next-intl";
 import { ExternalLink } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ChannelBadge } from "@/components/patterns";
@@ -18,6 +18,14 @@ interface ChannelCardProps {
   disconnecting?: boolean;
 }
 
+// 백엔드 channel_types.name은 한글 단일 컬럼이라 영어 모드에서도 한글로 노출됐음.
+// 카탈로그 키가 있으면 우선 사용하고, 없으면 백엔드가 보낸 name으로 폴백한다.
+const BRAND_KEY: Record<string, string> = {
+  cafe24: "brandNameCafe24",
+  naver: "brandNameNaver",
+  coupang: "brandNameCoupang",
+};
+
 export function ChannelCard({
   code,
   name,
@@ -30,16 +38,19 @@ export function ChannelCard({
   disconnecting,
 }: ChannelCardProps) {
   const t = useTranslations("channels");
+  const messages = useMessages() as Record<string, Record<string, unknown>>;
+  const brandKey = BRAND_KEY[code];
+  const brandName = brandKey && messages.channels?.[brandKey] ? t(brandKey) : name;
 
   return (
     <div className="flex flex-col rounded-2xl border border-border-subtle bg-bg-surface p-6 transition-colors hover:border-border-strong">
-      <div className="mb-4 flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-bg-surface-2">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-bg-surface-2">
             <Icon className="size-5 text-text-secondary" />
           </div>
-          <div>
-            <h3 className="font-semibold text-text-primary">{name}</h3>
+          <div className="min-w-0">
+            <h3 className="break-words font-semibold leading-tight text-text-primary">{brandName}</h3>
             <ChannelBadge code={code} className="mt-1" />
           </div>
         </div>

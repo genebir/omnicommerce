@@ -60,7 +60,11 @@
     "accountSettings": "계정 설정",
     "appearance": "외관",
     "help": "도움말",
-    "logout": "로그아웃"
+    "logout": "로그아웃",
+    "demoNotif1Title": "새 주문 접수",
+    "demoNotif1Body": "카페24에서 주문 #ORD-2026-0042",
+    "demoNotif2Title": "동기화 완료",
+    "demoNotif2Body": "네이버 상품 12개 동기화"
   },
   "auth": {
     "login": "로그인",
@@ -450,6 +454,12 @@
     "tunnelSetupLink": "Cafe24 개발자센터 열기",
     "tunnelStep2": "등록이 완료되면 아래 버튼을 눌러 연결하세요.",
     "tunnelPermanent": "영구 URL (항상 사용 가능)",
+    "tunnelMissingTitle": "Redirect URI 미설정",
+    "tunnelMissingBodyPrefix": "에 Cloudflare Worker URL을 설정해야 OAuth를 사용할 수 있습니다.",
+    "tunnelSetupGuide": "설정 방법 보기",
+    "brandNameCafe24": "카페24",
+    "brandNameNaver": "네이버 스마트스토어",
+    "brandNameCoupang": "쿠팡",
     "syncIssues": "동기화 이슈",
     "syncIssueCount": "{count}개의 동기화 문제가 있습니다",
     "syncAllGood": "모든 채널이 정상 동기화 중입니다",
