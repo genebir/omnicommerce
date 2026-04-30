@@ -1023,7 +1023,8 @@ make doctor   # 아래 전부 수행
 | 4 | 도메인 일관성 | **`domain/product/entities.py`의 status가 소문자**(`"draft"`/`activate()` → `"active"`)인데 DB 모델·채널 매핑·API 응답은 대문자(`"ACTIVE"`/`"INACTIVE"`). 도메인 엔티티 unit 테스트에서만 사용되어 운영 영향은 없으나 일관성 깨짐 — 도메인을 대문자로 통일. | `apps/api/src/domain/product/entities.py`, `apps/api/tests/unit/test_product_entity.py` |
 | 5 | 개발자 경험 | (a) `Makefile:doctor`가 `python --version`을 호출하지만 일부 머신엔 `python` 심볼릭 링크가 없음(우분투 표준) — `python3` 변경 또는 `command -v` fallback. (b) `pnpm lint`가 `storybook-static`·`.next`까지 검사해 12000+ warning. `eslint.config.*`에 `ignores` 추가. | `Makefile`, `apps/web/eslint.config.*` |
 | 6 | 보안 audit (마무리) | (a) admin 시드 검증 가이드 — `BOOTSTRAP_ADMIN_PASSWORD`를 .env에 넣고 `make seed` 한 번 돌려 첫 관리자 만드는 운영 가이드 README/16.3에 추가. (b) refresh token rotation reuse detection (페이즈 8 NB) — 현재 미구현, 토큰 탈취 시 방어 필요. | `README.md` 또는 `CLAUDE.md §16.3`, `apps/api/src/services/auth_service.py` |
-| 7 | (장기) | 다중 창고(WMS), B2B(세금계산서), `packages/shared-types/` (OpenAPI → TS 자동 생성) — v2 범위. | — |
+| 7 | 크로스플랫폼 (Windows 네이티브) | 페이즈 19에서 `start.sh`/`stop.sh`를 Linux/macOS/WSL2/Git Bash에서 동작하도록 정리했지만 **Windows 네이티브(PowerShell) 환경은 미지원** — `bash` 부재. `start.ps1`/`stop.ps1` 미러 추가, `Get-NetTCPConnection`으로 포트 점검, `docker compose`/`uv`/`pnpm` 호출 동일, PIDFILE 포맷 호환. 페이즈 19 commit 메시지에서 명시적으로 분리한 후속. | `start.ps1` (신규), `stop.ps1` (신규), `README.md` Windows 안내 |
+| 8 | (장기) | 다중 창고(WMS), B2B(세금계산서), `packages/shared-types/` (OpenAPI → TS 자동 생성) — v2 범위. | — |
 
 #### 16.2.2 v2 범위 (보류)
 
@@ -1068,27 +1069,36 @@ cd apps/web && pnpm install && cd ../..
 
 ```bash
 git fetch origin && git pull --ff-only origin main      # 새 머신 동기화
+./start.sh -d                                            # Docker + DB + 마이그/시드 + 서버 일괄 (페이즈 19에서 호환성 강화)
+# 또는 부분 명령:
 make doctor                                              # 환경/문서 정합성 검증 (§15.5)
 make migrate                                             # alembic upgrade head — 누락 마이그레이션 적용
-make test                                                # 백엔드 회귀 테스트 (96건 통과 기준)
+cd apps/api && uv run pytest tests/ -q                   # 백엔드 회귀 (페이즈 19 시점: 121건 통과 기준)
 cd apps/web && pnpm tsc --noEmit                         # 프론트 타입 체크
+cd apps/web && pnpm vitest run --project unit            # 프론트 unit (52건 통과 기준; storybook 프로젝트는 §16.2.1 우선순위 3 미해결)
 ```
 
-위 4개 명령이 모두 통과하지 않으면 **새 코드를 쓰기 전에 먼저 환경 문제를 잡는다**. 프로젝트 컨텍스트는 다음을 읽어 즉시 복원된다:
+위 명령이 모두 통과하지 않으면 **새 코드를 쓰기 전에 먼저 환경 문제를 잡는다**. 프로젝트 컨텍스트는 다음을 읽어 즉시 복원된다:
 
-1. `CLAUDE.md` (이 문서) — 작업 규칙·아키텍처·구현 현황 (§16.1)
+1. `CLAUDE.md` (이 문서) — 작업 규칙·아키텍처·구현 현황 (§16.1) + 다음 후보 우선순위 (§16.2.1)
 2. `FRONTEND.md` — 프론트엔드 디자인 토큰·컴포넌트·행동 규칙
-3. `git log --oneline -20` — 최근 진행 흐름
+3. `git log --oneline -25` — 최근 진행 흐름 (페이즈 14–19는 모두 main에 푸시됨)
 
 #### 16.3.3 이전 세션과 동일한 자율 사이클 재개
 
 다음 세션이 *"이어서 자율로 진행"*을 받으면 §16.2.1 표의 **우선순위 1**부터 같은 패턴(계획 → 구현 → `ruff/test/tsc` 검증 → 커밋 → 푸시)으로 진행하면 된다. 한 페이즈 완료 시점마다 §16.1.1 형식으로 본 문서에 한 줄 추가해 다음 세션에도 끊김 없이 흐름을 이어 줄 것.
 
+**현재 멈춘 지점 (2026-04-30 세션 종료 시점)**:
+- 페이즈 14–19 완료, 모두 `main` 푸시 완료. 마지막 커밋: `e15d578` (페이즈 19 — start.sh/stop.sh 호환성).
+- 사용자 외부 제약: **사업자 인증 미보유 → 채널 라이브 호출 검증 불가**. cafe24/naver/coupang 모두 mock 기반 docs 정합성까지만 가능. 사업자 인증되면 §16.2.1 우선순위 1(cafe24/naver docs 검증)부터 라이브 검증으로 전환 가능.
+- 라이브 검증 없이도 진행 가능한 후보는 §16.2.1 우선순위 3(Storybook 인프라) 이하 — 우선순위 3·4·5·6·7 모두 라이브 의존 없음. 우선순위 7(Windows 네이티브 PowerShell)은 페이즈 19 commit 메시지에서 명시적으로 분리한 후속.
+
 **페이즈 분리 원칙** (직전 세션에서 검증된 합의):
-- 한 페이즈 = 한 가지 종류의 변경 (보안 / UX / 버그 / i18n) — 섞지 말 것.
+- 한 페이즈 = 한 가지 종류의 변경 (보안 / UX / 버그 / i18n / 외부 API 정합성 / 부트스트랩) — 섞지 말 것.
 - 각 페이즈마다 회귀 테스트 1건 이상 추가, 백엔드 `pytest` + 프론트 `tsc` 통과 확인 후 커밋.
 - 푸시 전 `make doctor` 한 번 더 — 다른 머신에서 즉시 이어가도 깨끗한 상태.
 - 보안 패치는 별도 페이즈로 분리. 다른 변경(스타일·리팩터)과 묶지 말 것 — 검토와 롤백이 어렵다.
+- **외부 API docs와 코드 정합성은 별도 페이즈**(페이즈 18 쿠팡 패턴 참고) — 라이브 검증 없이도 mock 기반으로 가치 있음. 사업자 인증 후 동일 페이즈 번호로 라이브 검증 후속 추가.
 
 ---
 
