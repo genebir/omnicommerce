@@ -5,7 +5,12 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.infra.db.models.inventory import Inventory
 from src.infra.db.models.product import Product
+
+# 상품 등록 시 자동 생성하는 기본 창고 ID — Inventory.warehouse_id의 default와 일치.
+# 셀러가 명시적으로 다른 창고를 추가하기 전까지 단일 창고 워크플로를 가정한다.
+DEFAULT_WAREHOUSE_ID = "default"
 
 
 class ProductService:
@@ -33,6 +38,31 @@ class ProductService:
             category_path=category_path,
         )
         self._session.add(product)
+        await self._session.flush()  # product.id 확보
+
+        # 페르소나(컴퓨터 비숙련 1인 셀러)가 상품 등록 후 재고 페이지에서 빈 화면을
+        # 보고 막히던 워크플로를 차단하기 위해, default 창고 재고 row를 0으로 시드한다.
+        # uq_inventory_sku_warehouse(sku, warehouse_id) 제약 — 다른 사용자가 같은 SKU+
+        # 창고를 이미 점유 중이면 충돌. SKU는 본래 사용자 단위로 고유해야 하나 현재
+        # 스키마는 글로벌 unique이므로, 충돌 시 기존 row를 그대로 두고 silent skip한다.
+        existing = await self._session.execute(
+            select(Inventory).where(
+                Inventory.sku == sku,
+                Inventory.warehouse_id == DEFAULT_WAREHOUSE_ID,
+            )
+        )
+        if existing.scalar_one_or_none() is None:
+            self._session.add(
+                Inventory(
+                    product_id=product.id,
+                    sku=sku,
+                    warehouse_id=DEFAULT_WAREHOUSE_ID,
+                    total_quantity=0,
+                    allocated=0,
+                    available=0,
+                )
+            )
+
         await self._session.commit()
         await self._session.refresh(product)
         return product
