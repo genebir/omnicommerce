@@ -158,7 +158,9 @@ async def get_sales_stats(
 class ActivityItem(BaseModel):
     id: str
     type: str
-    description: str
+    description: str  # 하위 호환을 위한 한국어 fallback
+    title_key: str  # i18n 키 (예: "orderUpdated", "productUpdated") — 프론트가 t(...)로 렌더
+    params: dict[str, str]  # 키에 들어갈 변수
     timestamp: str
 
 
@@ -187,6 +189,8 @@ async def get_recent_activity(
                 id=str(order.id),
                 type="order",
                 description=f"주문 {order.external_order_id} ({order.status})",
+                title_key="orderUpdated",
+                params={"id": order.external_order_id or "", "status": order.status or ""},
                 timestamp=order.created_at.isoformat() if order.created_at else "",
             )
         )
@@ -203,6 +207,8 @@ async def get_recent_activity(
                 id=str(product.id),
                 type="product",
                 description=f"상품 {product.name} 업데이트",
+                title_key="productUpdated",
+                params={"name": product.name or ""},
                 timestamp=product.updated_at.isoformat() if product.updated_at else "",
             )
         )

@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, CheckCheck, Inbox } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   DropdownMenu,
   DropdownItem,
@@ -28,6 +28,7 @@ export function NotificationPanel({
   onMarkAllRead,
 }: NotificationPanelProps) {
   const t = useTranslations("topbar");
+  const locale = useLocale() as "ko" | "en";
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
@@ -86,7 +87,7 @@ export function NotificationPanel({
                     {notification.body}
                   </p>
                   <span className="text-xs text-text-tertiary">
-                    {formatRelative(notification.createdAt)}
+                    {formatRelative(notification.createdAt, locale)}
                   </span>
                 </div>
               </DropdownItem>

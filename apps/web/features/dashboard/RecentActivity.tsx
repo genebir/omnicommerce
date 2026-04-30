@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Loader2, ShoppingCart, Package } from "lucide-react";
 import { formatRelative } from "@/lib/utils/format";
 import { useRecentActivity } from "@/lib/hooks";
@@ -10,8 +10,14 @@ const TYPE_ICONS: Record<string, typeof ShoppingCart> = {
   product: Package,
 };
 
+const KEY_MAP: Record<string, string> = {
+  orderUpdated: "activityOrderUpdated",
+  productUpdated: "activityProductUpdated",
+};
+
 export function RecentActivity() {
   const t = useTranslations("dashboard");
+  const locale = useLocale() as "ko" | "en";
   const { data, isLoading } = useRecentActivity(10);
 
   const items = data?.items ?? [];
@@ -31,6 +37,10 @@ export function RecentActivity() {
         <ul className="space-y-1">
           {items.map((item) => {
             const Icon = TYPE_ICONS[item.type] ?? Package;
+            const messageKey = item.title_key ? KEY_MAP[item.title_key] : undefined;
+            const message = messageKey
+              ? t(messageKey, item.params ?? {})
+              : item.description;
             return (
               <li
                 key={item.id}
@@ -38,13 +48,11 @@ export function RecentActivity() {
               >
                 <div className="flex items-center gap-3">
                   <Icon className="size-4 text-text-tertiary" />
-                  <span className="text-sm text-text-secondary">
-                    {item.description}
-                  </span>
+                  <span className="text-sm text-text-secondary">{message}</span>
                 </div>
                 {item.timestamp && (
                   <span className="whitespace-nowrap text-xs text-text-tertiary">
-                    {formatRelative(item.timestamp)}
+                    {formatRelative(item.timestamp, locale)}
                   </span>
                 )}
               </li>

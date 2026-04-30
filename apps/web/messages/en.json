@@ -94,6 +94,8 @@
     "pendingSync": "Pending Sync",
     "recentActivity": "Recent Activity",
     "noActivity": "No activity yet",
+    "activityOrderUpdated": "Order {id} ({status})",
+    "activityProductUpdated": "Product {name} updated",
     "salesTrend": "Sales Trend",
     "revenue": "Revenue",
     "noSalesData": "No sales data",

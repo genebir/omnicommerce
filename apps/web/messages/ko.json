@@ -94,6 +94,8 @@
     "pendingSync": "동기화 대기",
     "recentActivity": "최근 활동",
     "noActivity": "아직 활동 내역이 없습니다",
+    "activityOrderUpdated": "주문 {id} ({status})",
+    "activityProductUpdated": "상품 {name} 업데이트",
     "salesTrend": "매출 추이",
     "revenue": "매출",
     "noSalesData": "매출 데이터가 없습니다",

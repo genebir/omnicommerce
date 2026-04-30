@@ -47,7 +47,9 @@ export function useSalesStats(months = 7) {
 interface ActivityItem {
   id: string;
   type: string;
-  description: string;
+  description: string; // 백엔드 한국어 fallback
+  title_key?: string; // i18n 키 ("orderUpdated" 등) — 있으면 우선 사용
+  params?: Record<string, string>;
   timestamp: string;
 }
 
