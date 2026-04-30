@@ -19,7 +19,10 @@ class Product(BaseModel):
     price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     cost_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     category_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="INACTIVE")
+    # 페르소나(컴퓨터 비숙련 1인 셀러)가 신규 상품을 등록한 직후 "비활성"
+    # 배지를 보고 "왜 비활성?"하고 막혔던 회귀를 차단. 페이즈 5 채널 매핑
+    # 정규화에서 외부 응답을 "ACTIVE"/"INACTIVE" 대문자로 통일했으므로 일관.
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="ACTIVE")
     raw_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     images: Mapped[list["ProductImage"]] = relationship(back_populates="product", cascade="all, delete-orphan")
