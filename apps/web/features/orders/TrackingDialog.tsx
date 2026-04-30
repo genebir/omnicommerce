@@ -104,7 +104,7 @@ export function TrackingDialog({
                 ))}
               </select>
               <Input
-                placeholder="직접 입력"
+                placeholder={t("trackingCompanyDirect")}
                 value={CARRIERS.includes(company) ? "" : company}
                 onChange={(e) => setCompany(e.target.value)}
                 className="w-32"

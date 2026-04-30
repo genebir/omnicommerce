@@ -56,7 +56,7 @@ export function SettingHistoryDrawer({ setting, open, onClose }: Props) {
                 {setting ? t("historyTitle", { key: setting.key }) : ""}
               </h2>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose} aria-label="닫기">
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label={tc("close")}>
               <X className="h-4 w-4" />
             </Button>
           </div>

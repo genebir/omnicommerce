@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,9 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const router = useRouter();
+  const tNav = useTranslations("nav");
+  const tCmd = useTranslations("commandPalette");
+  const tCommon = useTranslations("common");
 
   const go = useCallback(
     (path: string) => {
@@ -44,19 +48,26 @@ export function CommandPalette() {
     [router],
   );
 
-  const items: CommandItem[] = [
-    { id: "dashboard",    label: "대시보드",        icon: LayoutDashboard, section: "이동", action: () => go("/dashboard") },
-    { id: "products",     label: "상품",            icon: Package,         section: "이동", action: () => go("/products") },
-    { id: "orders",       label: "주문",            icon: ShoppingCart,    section: "이동", action: () => go("/orders") },
-    { id: "inventory",    label: "재고",            icon: Warehouse,       section: "이동", action: () => go("/inventory") },
-    { id: "channels",     label: "채널 연결",       icon: Link2,           section: "이동", action: () => go("/channels") },
-    { id: "settings",     label: "설정",            icon: Settings,        section: "이동", action: () => go("/settings") },
-    { id: "new-product",  label: "상품 등록",       icon: Plus,            section: "동작", action: () => go("/products/new") },
-    { id: "sync-all",     label: "전체 동기화",     icon: RefreshCw,       section: "동작", action: () => setOpen(false) },
-  ];
+  const sectionNav = tCmd("sectionNavigate");
+  const sectionAct = tCmd("sectionActions");
+  const items: CommandItem[] = useMemo(
+    () => [
+      { id: "dashboard",   label: tNav("dashboard"),  icon: LayoutDashboard, section: sectionNav, action: () => go("/dashboard") },
+      { id: "products",    label: tNav("products"),   icon: Package,         section: sectionNav, action: () => go("/products") },
+      { id: "orders",      label: tNav("orders"),     icon: ShoppingCart,    section: sectionNav, action: () => go("/orders") },
+      { id: "inventory",   label: tNav("inventory"),  icon: Warehouse,       section: sectionNav, action: () => go("/inventory") },
+      { id: "channels",    label: tNav("channels"),   icon: Link2,           section: sectionNav, action: () => go("/channels") },
+      { id: "settings",    label: tNav("settings"),   icon: Settings,        section: sectionNav, action: () => go("/settings") },
+      { id: "new-product", label: tNav("newProduct"), icon: Plus,            section: sectionAct, action: () => go("/products/new") },
+      { id: "sync-all",    label: tNav("syncAll"),    icon: RefreshCw,       section: sectionAct, action: () => setOpen(false) },
+    ],
+    [tNav, sectionNav, sectionAct, go],
+  );
 
   const filtered = query
-    ? items.filter((item) => item.label.includes(query))
+    ? items.filter((item) =>
+        item.label.toLowerCase().includes(query.toLowerCase()),
+      )
     : items;
 
   const sections = [...new Set(filtered.map((item) => item.section))];
@@ -103,7 +114,7 @@ export function CommandPalette() {
         onKeyDown={handleKeyDown}
       >
         <VisuallyHidden>
-          <DialogTitle>명령어 팔레트</DialogTitle>
+          <DialogTitle>{tCmd("title")}</DialogTitle>
         </VisuallyHidden>
 
         {/* 검색 입력 */}
@@ -113,7 +124,8 @@ export function CommandPalette() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="검색 또는 명령어..."
+            placeholder={tCmd("placeholder")}
+            aria-label={tCommon("search")}
             className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none"
             autoFocus
           />
@@ -126,7 +138,7 @@ export function CommandPalette() {
         <div className="max-h-80 overflow-y-auto p-2">
           {filtered.length === 0 && (
             <p className="py-8 text-center text-sm text-text-tertiary">
-              결과가 없습니다
+              {tCmd("noResults")}
             </p>
           )}
 

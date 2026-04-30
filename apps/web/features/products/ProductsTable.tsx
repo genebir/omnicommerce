@@ -64,14 +64,14 @@ export function ProductsTable() {
         <Checkbox
           checked={table.getIsAllRowsSelected()}
           onCheckedChange={(v) => table.toggleAllRowsSelected(!!v)}
-          aria-label="전체 선택"
+          aria-label={tc("selectAll")}
         />
       ),
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(v) => row.toggleSelected(!!v)}
-          aria-label="행 선택"
+          aria-label={tc("selectRow")}
         />
       ),
     }),
@@ -145,7 +145,7 @@ export function ProductsTable() {
             setDeleteTarget(row.original);
           }}
           className="cursor-pointer rounded-lg p-1.5 text-text-tertiary opacity-0 transition-all hover:bg-state-error/10 hover:text-state-error group-hover:opacity-100"
-          aria-label="삭제"
+          aria-label={tc("delete")}
         >
           <Trash2 className="size-3.5" />
         </button>

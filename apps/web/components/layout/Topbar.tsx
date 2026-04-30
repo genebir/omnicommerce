@@ -22,6 +22,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const t = useTranslations("topbar");
+  const tCommon = useTranslations("common");
 
   function handleLogout() {
     logout();
@@ -35,7 +36,7 @@ export function Topbar({ onMobileMenuOpen }: TopbarProps) {
         type="button"
         onClick={onMobileMenuOpen}
         className="cursor-pointer rounded-lg p-2 text-text-secondary transition-colors hover:bg-bg-surface-2 lg:hidden"
-        aria-label="메뉴"
+        aria-label={tCommon("menu")}
       >
         <Menu className="size-5" />
       </button>

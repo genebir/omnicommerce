@@ -23,7 +23,10 @@
     "errorMessage": "Something went wrong",
     "tryAgain": "Try again",
     "clearFilter": "Clear filter",
-    "viewMore": "View more →"
+    "viewMore": "View more →",
+    "menu": "Menu",
+    "close": "Close",
+    "openExternal": "Open in a new tab"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -162,6 +165,7 @@
     "notFound": "Product not found",
     "columnChannels": "Channels",
     "channelListings": "Channel Listings",
+    "openChannelPage": "Open channel page",
     "noListings": "No channel listings",
     "resync": "Resync",
     "resyncSuccess": "{channel} channel sync complete",
@@ -325,6 +329,7 @@
     "trackingSaveSuccess": "Tracking info saved",
     "trackingSaveError": "Failed to save tracking info",
     "trackingCompanyPlaceholder": "Select carrier",
+    "trackingCompanyDirect": "Enter manually",
     "trackingNumberPlaceholder": "e.g. 123456789012",
     "trackingOptional": "Skip for now",
     "productName": "Product",

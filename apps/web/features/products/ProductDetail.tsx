@@ -302,7 +302,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-text-tertiary hover:text-accent-iris transition-colors"
-                                  aria-label="채널 페이지 열기"
+                                  aria-label={t("openChannelPage")}
                                 >
                                   <ExternalLink className="size-3.5" />
                                 </a>

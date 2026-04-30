@@ -23,7 +23,10 @@
     "errorMessage": "문제가 발생했습니다",
     "tryAgain": "다시 시도",
     "clearFilter": "필터 해제",
-    "viewMore": "자세히 보기 →"
+    "viewMore": "자세히 보기 →",
+    "menu": "메뉴",
+    "close": "닫기",
+    "openExternal": "새 창에서 열기"
   },
   "nav": {
     "dashboard": "대시보드",
@@ -163,6 +166,7 @@
     "columnChannels": "판매 채널",
     "channelListings": "채널 등록 현황",
     "noListings": "등록된 채널이 없습니다",
+    "openChannelPage": "채널 페이지 열기",
     "resync": "재동기화",
     "resyncSuccess": "{channel} 채널 동기화 완료",
     "resyncError": "채널 동기화에 실패했습니다",
@@ -325,6 +329,7 @@
     "trackingSaveSuccess": "운송장 정보가 저장됐습니다",
     "trackingSaveError": "운송장 저장에 실패했습니다",
     "trackingCompanyPlaceholder": "택배사를 선택하세요",
+    "trackingCompanyDirect": "직접 입력",
     "trackingNumberPlaceholder": "예) 123456789012",
     "trackingOptional": "나중에 입력",
     "productName": "상품명",
