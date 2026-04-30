@@ -38,6 +38,9 @@ class UserResponse(BaseModel):
     email: str
     name: str
     is_active: bool
+    # 프론트엔드 admin 가드(사이드바 항목 숨김 + /admin/settings 접근 제어)에 사용.
+    # 백엔드는 페이즈 8에서 이미 403으로 차단하지만, UI에서도 사전 차단해 어색한 흐름 제거.
+    is_superuser: bool
 
     model_config = {"from_attributes": True}
 
@@ -53,6 +56,7 @@ async def register(body: RegisterRequest, session: SessionDep):
                 email=user.email,
                 name=user.name,
                 is_active=user.is_active,
+                is_superuser=user.is_superuser,
             )
         )
     except AuthenticationError as e:
@@ -77,6 +81,7 @@ async def me(current_user: CurrentUserDep):
             email=current_user.email,
             name=current_user.name,
             is_active=current_user.is_active,
+            is_superuser=current_user.is_superuser,
         )
     )
 

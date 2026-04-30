@@ -503,6 +503,9 @@
   "admin": {
     "title": "관리자 설정",
     "subtitle": "런타임 설정을 조회하고 수정합니다",
+    "noAccessTitle": "관리자 권한이 필요합니다",
+    "noAccessDesc": "이 페이지는 관리자 계정만 접근할 수 있습니다. 권한이 필요하면 운영자에게 문의해 주세요.",
+    "backToDashboard": "대시보드로 돌아가기",
     "searchPlaceholder": "키·설명 검색",
     "scopeAll": "전체 스코프",
     "columnKey": "설정 키",

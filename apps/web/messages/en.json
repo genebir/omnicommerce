@@ -503,6 +503,9 @@
   "admin": {
     "title": "Admin Settings",
     "subtitle": "View and modify runtime configuration",
+    "noAccessTitle": "Administrator access required",
+    "noAccessDesc": "This page is only available to administrator accounts. Please contact an operator if you need access.",
+    "backToDashboard": "Back to dashboard",
     "searchPlaceholder": "Search by key or description",
     "scopeAll": "All scopes",
     "columnKey": "Key",

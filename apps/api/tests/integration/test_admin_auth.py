@@ -121,3 +121,33 @@ async def test_config_ui_remains_public(client):
     """`/config/ui`는 로그인 페이지에서도 필요하므로 공개 유지."""
     resp = await client.get("/api/v1/config/ui")
     assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_me_exposes_is_superuser_for_admin_gate(client):
+    """`/auth/me` 응답에 `is_superuser` 필드 노출 — 프론트 admin 가드(페이즈 17) 의존."""
+    # 일반 셀러로 가입
+    seller_email = f"seller-{uuid.uuid4().hex[:8]}@example.com"
+    seller_token = await _register_login(client, seller_email)
+    client.headers["Authorization"] = f"Bearer {seller_token}"
+
+    me = await client.get("/api/v1/auth/me")
+    assert me.status_code == 200
+    body = me.json()["data"]
+    assert "is_superuser" in body, "프론트 가드가 의존하는 is_superuser 필드 누락"
+    assert body["is_superuser"] is False
+    del client.headers["Authorization"]
+
+    # 관리자로 승격 후 다시 확인
+    admin_email = f"admin-me-{uuid.uuid4().hex[:8]}@example.com"
+    await _register_login(client, admin_email)
+    await _promote_to_admin(client, admin_email)
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": admin_email, "password": "testpass1234"},  # pragma: allowlist secret
+    )
+    client.headers["Authorization"] = f"Bearer {login.json()['data']['access_token']}"
+    me_admin = await client.get("/api/v1/auth/me")
+    assert me_admin.status_code == 200
+    assert me_admin.json()["data"]["is_superuser"] is True
+    del client.headers["Authorization"]

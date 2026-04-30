@@ -20,11 +20,13 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLowStock, usePendingMatches, useSyncIssues } from "@/lib/hooks";
+import { useAuthStore } from "@/stores/auth";
 
 interface NavItem {
   href: string;
   labelKey: string;
   icon: LucideIcon;
+  adminOnly?: boolean;
 }
 
 type BadgeTone = "warn" | "error";
@@ -42,7 +44,7 @@ const navItems: NavItem[] = [
   { href: "/inventory", labelKey: "inventory", icon: Warehouse },
   { href: "/channels", labelKey: "channels", icon: Link2 },
   { href: "/settings", labelKey: "settings", icon: Settings },
-  { href: "/admin/settings", labelKey: "adminSettings", icon: SlidersHorizontal },
+  { href: "/admin/settings", labelKey: "adminSettings", icon: SlidersHorizontal, adminOnly: true },
 ];
 
 const quickActions: NavItem[] = [
@@ -59,11 +61,16 @@ interface SidebarProps {
 export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const t = useTranslations("nav");
+  const isSuperuser = useAuthStore((s) => s.user?.is_superuser ?? false);
 
   // 인증 후에만 의미 있는 카운트 — 미인증 상태에선 비어있어 안전.
   const { data: pendingMatches } = usePendingMatches();
   const { data: lowStock } = useLowStock(10, 100);
   const { data: syncIssues } = useSyncIssues();
+
+  // adminOnly 항목은 is_superuser=true 사용자에게만 노출. 백엔드도 페이즈 8에서 403 차단하므로
+  // UX 일관성 + 일반 셀러가 거기 있는지조차 모르게 하는 의도. 가시성도 권한 모델의 일부.
+  const visibleNavItems = navItems.filter((item) => !item.adminOnly || isSuperuser);
 
   const pendingCount = pendingMatches?.length ?? 0;
   const lowStockCount = lowStock?.length ?? 0;
@@ -141,7 +148,7 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: Side
         {/* Primary Nav */}
         <nav className="flex-1 overflow-y-auto px-2 py-3">
           <ul className="space-y-1">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive =
                 pathname === item.href || pathname.startsWith(`${item.href}/`);
               const label = t(item.labelKey);
