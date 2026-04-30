@@ -49,12 +49,19 @@ class CoupangOrderDTO(BaseModel):
     orderItems: list[dict] = []  # noqa: N815
 
 
+# 쿠팡 statusName이 ACTIVE로 분류돼야 하는 값들 (페이즈 18 docs 정합성).
+# 공식 statusName enum: 임시저장 | 승인요청 | 승인대기중 | 승인완료 | 부분승인완료 |
+# 승인반려 | 판매중 | 판매중지. "승인완료" 단일 매칭은 협소해, 셀러 시점에서 노출
+# 가능한 상태(승인 통과 + 판매중)를 모두 ACTIVE로 묶는다.
+_ACTIVE_STATUS_NAMES: frozenset[str] = frozenset({"승인완료", "부분승인완료", "판매중"})
+
+
 def parse_product(raw: dict) -> CoupangProductDTO:
     return CoupangProductDTO.model_validate(raw)
 
 
 def normalize_product(dto: CoupangProductDTO) -> NormalizedProduct:
-    status = "ACTIVE" if dto.statusName == "승인완료" else "INACTIVE"
+    status = "ACTIVE" if dto.statusName in _ACTIVE_STATUS_NAMES else "INACTIVE"
     return NormalizedProduct(
         external_id=str(dto.sellerProductId),
         sku=dto.sellerProductItemId or str(dto.sellerProductId),

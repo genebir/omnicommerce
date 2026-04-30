@@ -11,7 +11,8 @@ _BASE = "https://api-gateway.coupang.com"
 _VENDOR_ID = "test-vendor-id"
 _PRODUCTS_PATH = "/v2/providers/seller_api/apis/api/v1/marketplace/seller-products"
 _ORDERS_PATH = f"/v2/providers/openapi/apis/api/v4/vendors/{_VENDOR_ID}/ordersheets"
-_INVENTORY_PATH = "/v2/providers/seller_api/apis/api/v1/marketplace/vendor-items/quantities"
+# 페이즈 18: 재고 갱신은 단건 path-param 방식 (`/vendor-items/{vendorItemId}/quantities/{qty}`).
+_INVENTORY_BASE = "/v2/providers/seller_api/apis/api/v1/marketplace/vendor-items"
 
 
 def _make_product(i: int) -> dict:
@@ -62,7 +63,10 @@ async def test_contract():
         respx.post(f"{_BASE}{_PRODUCTS_PATH}").mock(return_value=httpx.Response(200, json={"data": product_id}))
 
     def mock_update_inventory():
-        respx.put(f"{_BASE}{_INVENTORY_PATH}").mock(return_value=httpx.Response(200, json={"result": "success"}))
+        # contract suite는 sku="TEST-SKU", qty=50으로 호출. 새 단건 path-param 경로.
+        respx.put(f"{_BASE}{_INVENTORY_BASE}/TEST-SKU/quantities/50").mock(
+            return_value=httpx.Response(200, json={"result": "success"})
+        )
 
     def mock_fetch_orders(count=2):
         orders = [_make_order(i) for i in range(count)]

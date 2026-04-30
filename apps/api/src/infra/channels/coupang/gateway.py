@@ -1,6 +1,11 @@
-"""쿠팡 채널 게이트웨이 구현 (§5, §6.2)."""
+"""쿠팡 채널 게이트웨이 구현 (§5, §6.2).
 
-from datetime import datetime
+페이즈 18 docs 정합성:
+- 재고 갱신은 단건 path-param 방식 (`PUT /vendor-items/{vendorItemId}/quantities/{qty}`)
+- 주문 조회는 `createdAtTo` + `searchType=timeFrame` 필수
+"""
+
+from datetime import UTC, datetime
 
 from src.infra.channels.base import ExternalId, ProductPage
 from src.infra.channels.coupang.client import CoupangClient
@@ -72,18 +77,30 @@ class CoupangGateway:
         await self._client.delete(path)
 
     async def update_inventory(self, sku: str, qty: int, external_id: str | None = None) -> None:  # noqa: ARG002
-        path = "/v2/providers/seller_api/apis/api/v1/marketplace/vendor-items/quantities"
-        await self._client.put(
-            path,
-            json=[{"vendorItemId": sku, "quantity": qty}],
-        )
+        # 쿠팡 재고 갱신은 단건 path-param 방식 (공식 docs).
+        # 일괄 PUT body 형태는 실재하지 않음. 다중 SKU 갱신은 호출자가 루프로 처리한다.
+        # `sku`는 vendorItemId로 사용된다(현재 구조 유지). external_id(sellerProductId)는 미사용.
+        path = f"/v2/providers/seller_api/apis/api/v1/marketplace/vendor-items/{sku}/quantities/{qty}"
+        await self._client.put(path)
 
-    async def fetch_orders(self, since: datetime, until: datetime | None = None) -> list:  # noqa: ARG002
-        since_str = since.strftime("%Y-%m-%dT00:00:00")
+    async def fetch_orders(self, since: datetime, until: datetime | None = None) -> list:
+        # 쿠팡 주문 조회는 `createdAtTo` + `searchType=timeFrame`이 필수 (공식 docs).
+        # `timeFrame`은 24시간 이내 권장 — 더 넓은 범위는 호출자가 청크로 나눠야 한다.
+        # NB: 1일 초과 범위 청킹은 §16.2.1 후속 페이즈로 분리. 현 시점에서는
+        # 게이트웨이가 받은 since/until을 그대로 createdAtFrom/createdAtTo로 송신.
+        actual_until = until or datetime.now(UTC)
+        since_str = since.strftime("%Y-%m-%dT%H:%M:%S")
+        until_str = actual_until.strftime("%Y-%m-%dT%H:%M:%S")
+
         path = f"/v2/providers/openapi/apis/api/v4/vendors/{self._client.vendor_id}/ordersheets"
         data = await self._client.get(
             path,
-            params={"createdAtFrom": since_str, "maxPerPage": 50},
+            params={
+                "createdAtFrom": since_str,
+                "createdAtTo": until_str,
+                "searchType": "timeFrame",
+                "maxPerPage": 50,
+            },
         )
 
         orders = []
