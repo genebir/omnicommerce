@@ -5,15 +5,30 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PIDFILE="$ROOT_DIR/.dev.pids"
 cd "$ROOT_DIR"
 
-# 색상
-GREEN='\033[0;32m'
-CYAN='\033[0;36m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+# ── 색상 (NO_COLOR 환경변수 존중 + tty 아닐 때 비활성화) ───────────────────
+if [ -n "${NO_COLOR:-}" ] || [ ! -t 1 ]; then
+  GREEN='' CYAN='' YELLOW='' NC=''
+else
+  GREEN='\033[0;32m'
+  CYAN='\033[0;36m'
+  YELLOW='\033[1;33m'
+  NC='\033[0m'
+fi
 
 log()  { echo -e "${CYAN}▸${NC} $1"; }
 ok()   { echo -e "${GREEN}✓${NC} $1"; }
 warn() { echo -e "${YELLOW}⚠${NC} $1"; }
+
+# ── docker compose v1/v2 자동 감지 (start.sh와 동일) ───────────────────────
+detect_compose() {
+  if docker compose version >/dev/null 2>&1; then
+    echo "docker compose"
+  elif command -v docker-compose >/dev/null 2>&1; then
+    echo "docker-compose"
+  else
+    echo ""
+  fi
+}
 
 # ── 프로세스 트리 종료 (pgrep -P 재귀, macOS/Linux 호환) ─────────────────────
 kill_tree() {
@@ -31,6 +46,7 @@ echo -e "${CYAN}━━━ OmniCommerce 개발 환경 종료 ━━━${NC}"
 echo ""
 
 # ── 1. 앱 프로세스 종료 ──────────────────────────────────────────────────────
+DOCKER_COMPOSE=""
 if [ -f "$PIDFILE" ]; then
   # shellcheck source=/dev/null
   source "$PIDFILE"
@@ -54,8 +70,16 @@ else
 fi
 
 # ── 2. Docker 컨테이너 종료 ──
-log "Docker 컨테이너 종료..."
-docker compose down 2>/dev/null && ok "Docker 종료"
+# PIDFILE이 DOCKER_COMPOSE를 기록했으면 그 값을 우선 사용, 아니면 자동 감지.
+if [ -z "$DOCKER_COMPOSE" ]; then
+  DOCKER_COMPOSE="$(detect_compose)"
+fi
+if [ -n "$DOCKER_COMPOSE" ]; then
+  log "Docker 컨테이너 종료..."
+  $DOCKER_COMPOSE down >/dev/null 2>&1 && ok "Docker 종료"
+else
+  warn "docker compose를 찾을 수 없음 — Docker 종료 단계 건너뜀"
+fi
 
 echo ""
 ok "모든 서비스 종료 완료"
